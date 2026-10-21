@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Stellenbörse - Test Steuerberatung</title>
+<style>#form{display:none} .error{color:#c00} #CybotCookiebotDialog{position:fixed;bottom:0;left:0;right:0;background:#eee;padding:20px}</style></head>
+<body>
+<div id="CybotCookiebotDialog">Diese Website verwendet Cookies.
+  <label><input type="checkbox" id="CybotCookiebotDialogBodyLevelButtonMarketing"> Marketing</label>
+  <button id="CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll" onclick="consent('all')">Alle zulassen</button>
+  <button id="CybotCookiebotDialogBodyButtonDecline" onclick="consent('necessary')">Nur notwendige Cookies verwenden</button>
+</div>
+<form id="search"><input type="text" name="tx_indexedsearch_pi2[search][sword]" placeholder="Suchbegriff eingeben..."></form>
+<main>
+<h1>Werkstudent (m/w/d) im Bereich Prozessautomatisierung RPA</h1>
+<p>Du entwickelst Automationslösungen auf Basis UiPath.</p>
+<a href="javascript:openApplicationForm();">Jetzt bewerben</a> <a href="#initiativ">Initiativ bewerben</a>
+<div id="form"><form id="applicationForm" method="post" onsubmit="return send(event)">
+  <h3>Deine persönlichen Informationen</h3>
+  <select id="gender" name="tx_personio_show[gender]" required><option value="">Anrede *</option><option>Herr</option><option>Frau</option><option>divers</option></select>
+  <input id="firstName" name="tx_personio_show[firstName]" placeholder="Vorname *" required>
+  <input id="lastName" name="tx_personio_show[lastName]" placeholder="Nachname *" required>
+  <input id="birthday" name="tx_personio_show[birthday]" placeholder="Geburtsdatum">
+  <input type="email" id="email" name="tx_personio_show[email]" placeholder="E-Mail *" required>
+  <input id="phone" name="tx_personio_show[phone]" placeholder="Telefon *" required>
+  <select id="findus" name="tx_personio_show[findus]" required><option value="">Wie bist Du auf uns aufmerksam geworden? *</option><option>Karriereseite</option><option>Agentur für Arbeit</option><option>Google</option><option>Indeed</option><option>LinkedIn</option><option>Online-Stellenbörse</option></select>
+  <h3>Deine Bewerbungsunterlagen</h3>
+  <div><label>Anschreiben (max. 20 MB)</label><input type="file" name="tx_personio_show[coverLetterDocuments]" accept="application/pdf"></div>
+  <div><label>Lebenslauf (max. 20 MB) *</label><input type="file" name="tx_personio_show[cvDocuments]" required accept="application/pdf"></div>
+  <div><label>Arbeitszeugnisse (max. 20 MB)</label><input type="file" name="tx_personio_show[erDocuments]"></div>
+  <div><label>Sonstige Unterlagen (max. 20 MB)</label><input type="file" name="tx_personio_show[otherDocuments]"></div>
+  <label><input type="checkbox" id="dataProtection" name="tx_personio_show[dataProtection]" required> Ich willige in die Speicherung meiner personenbezogenen Daten im Rahmen der Datenschutzerklärung ein.*</label>
+  <div class="frc-captcha" data-sitekey="FCMTEST"><button type="button">Hier klicken</button></div>
+  <div id="errors"></div>
+  <button type="submit">Bewerbung abschließen</button>
+</form></div>
+<div id="done" style="display:none"><h2>Vielen Dank für deine Bewerbung!</h2></div>
+</main>
+<script>
+window.consentChoice = '';
+function consent(c){ window.consentChoice = c; document.getElementById('CybotCookiebotDialog').style.display='none'; }
+function openApplicationForm(){ document.getElementById('form').style.display='block'; }
+function send(e){ e.preventDefault();
+  const f = e.target, errs = [];
+  if (!f.checkValidity()) { [...f.elements].filter(x=>x.willValidate && !x.checkValidity()).forEach(x=>{x.setAttribute('aria-invalid','true'); errs.push('Pflichtfeld: '+(x.name||x.id));}); }
+  document.getElementById('errors').innerHTML = errs.map(x=>'<div class="error">'+x+'</div>').join('');
+  if (!errs.length) { document.getElementById('form').style.display='none'; document.getElementById('done').style.display='block'; }
+  return false; }
+</script>
+</body></html>

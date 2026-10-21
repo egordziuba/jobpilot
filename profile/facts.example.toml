@@ -1,0 +1,73 @@
+# Пример профиля. Скопируй в profile/facts.toml и впиши ТОЛЬКО подтверждённые факты о себе.
+# Письма собираются из этих абзацев — ничего сверх них. Слова из [forbidden] никогда не попадут в рассказ о тебе.
+
+[forbidden]
+claims = [
+  "Power BI", "VBA", "Power Apps", "Power Automate", "Copilot Studio", "n8n",
+  "fortgeschrittene Python", "sehr gute Python", "advanced Python",
+  "kommerzielle Softwareentwicklung", "Softwareentwickler", "abgeschlossene Ausbildung",
+  "Ausbildung abgeschlossen", "Deutsch C1", "Deutsch auf C1", "verhandlungssicher",
+  "Prozent", "%", "Kosten gesenkt", "Zeitersparnis von",
+]
+
+[study]
+de = "Ich studiere Wirtschaftsinformatik (B.Sc.) an einer Hamburger Hochschule."
+en = "I am studying Business Informatics (B.Sc.) at a university in Hamburg."
+
+# Темы: task = чем занят работодатель (дополняет «Unterstützung bei …»),
+# proof = подтверждённое доказательство, benefit = возможная польза.
+[themes.automation]
+task_de = "der Analyse und Automatisierung wiederkehrender Abläufe"
+task_en = "analysing and automating recurring workflows"
+proof_de = "Automatisierung setze ich in eigenen Python-Projekten um: Ein Skript sammelt Daten aus mehreren Quellen, erkennt Dubletten und erstellt daraus einen Bericht; es ist mit automatisierten Tests abgesichert."
+proof_en = "I build automation in my own Python projects: a script that collects data from several sources, detects duplicates and produces a report, covered by automated tests."
+benefit_de = "So kann ich Ihr Team dabei unterstützen, Abläufe aufzunehmen, Automatisierungen umzusetzen, zu testen und verständlich zu dokumentieren."
+benefit_en = "This lets me help your team map workflows, implement and test automations and document them clearly."
+
+[themes.ai]
+task_de = "der Einführung und Erprobung von KI-Anwendungen"
+task_en = "introducing and piloting AI applications"
+proof_de = "KI setze ich praktisch ein: In einem Studienprojekt habe ich einen Prototyp gebaut, der eingehende Anfragen mit einem Sprachmodell vorsortiert; die Ergebnisse werden manuell geprüft."
+proof_en = "I use AI in practice: in a university project I built a prototype that pre-sorts incoming requests with a language model; the results are reviewed manually."
+benefit_de = "Damit kann ich helfen, KI-Anwendungsfälle realistisch zu bewerten, Prototypen aufzubauen und ihre Grenzen klar zu benennen."
+benefit_en = "This lets me help assess AI use cases realistically, build prototypes and state their limits clearly."
+
+[themes.enablement]
+task_de = "der Befähigung von Kolleginnen und Kollegen im Umgang mit digitalen und KI-Werkzeugen"
+task_en = "enabling colleagues to use digital and AI tools"
+proof_de = "Wissen verständlich aufzubereiten gehört zu meiner Praxis: Für mein Studienteam habe ich Anleitungen und Checklisten zu unseren Werkzeugen geschrieben."
+proof_en = "Making knowledge easy to use is part of my practice: I wrote guides and checklists on our tools for my study team."
+benefit_de = "So kann ich dazu beitragen, dass neue Werkzeuge im Arbeitsalltag tatsächlich genutzt werden."
+benefit_en = "This way I can help new tools actually get used in day-to-day work."
+
+[themes.process]
+task_de = "der Analyse und Dokumentation von Geschäftsprozessen"
+task_en = "analysing and documenting business processes"
+proof_de = "Manuelle Abläufe kenne ich aus der Praxis: In einem Praktikum im Büro habe ich Kundendaten gepflegt und Vorgänge dokumentiert."
+proof_en = "I know manual processes from practice: during an office internship I maintained customer data and documented cases."
+benefit_de = "So kann ich Prozesse strukturiert aufnehmen und Verbesserungspotenziale aus Sicht der Anwender erkennen."
+benefit_en = "This helps me capture processes in a structured way and spot improvements from the users' point of view."
+
+[themes.data]
+task_de = "der Aufbereitung von Daten und dem Reporting"
+task_en = "data preparation and reporting"
+proof_de = "Mit Daten arbeite ich regelmäßig: Excel nutze ich im Studium und im Praktikum, SQL kenne ich in Grundzügen."
+proof_en = "I work with data regularly: I use Excel in my studies and internship, and I have basic SQL knowledge."
+benefit_de = "So kann ich bei der Aufbereitung, Prüfung und Darstellung von Daten zuverlässig unterstützen."
+benefit_en = "This lets me support data preparation, checking and presentation reliably."
+
+[themes.project]
+task_de = "der Koordination digitaler Projekte"
+task_en = "coordinating digital projects"
+proof_de = "Eigene Projekte habe ich von der Idee bis zum Prototyp umgesetzt, darunter eine kleine Website mit Kontaktformular."
+proof_en = "I have taken my own projects from idea to prototype, including a small website with a contact form."
+benefit_de = "So kann ich Ihr Team bei Planung, Koordination und Nachverfolgung von Arbeitspaketen entlasten."
+benefit_en = "This way I can take work off your team in planning, coordinating and following up on work packages."
+
+[themes.finance]
+task_de = "digitalen Themen im Finanz- und Versicherungsumfeld"
+task_en = "digital topics in finance and insurance"
+proof_de = "Fachlich bringe ich Grundlagen aus Rechnungswesen und Finanzierung aus dem Studium mit."
+proof_en = "On the business side I bring fundamentals of accounting and finance from my studies."
+benefit_de = "So verstehe ich fachliche Anforderungen schnell und kann sie in digitale Lösungen übersetzen."
+benefit_en = "This helps me understand business requirements quickly and translate them into digital solutions."

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Bewerbung als Werkstudent*in Data Management – Test GmbH</title>
+<style>
+ .po-select-native{display:none} .po-select{border:1px solid #999;padding:4px;margin:4px 0;cursor:pointer;position:relative}
+ .menu{display:none;position:absolute;background:#fff;border:1px solid #333;z-index:5} .menu.open{display:block}
+ .menu li{list-style:none;padding:2px 8px} .error{color:#c00} .hidden{display:none}
+ .upload-core-input{display:none}
+</style></head>
+<body>
+<a href="#">Zur Stellenanzeige</a>
+<div class="autofill-box"><p>Automatisches Ausfüllen mit deinem Lebenslauf. Spare Zeit. Lade deinen Lebenslauf hoch und wir füllen das Bewerbungsformular mit deinen Angaben automatisch aus.</p>
+  <input type="file" class="upload-core-input" id="parse-cv"></div>
+<form id="apply-form" method="post" action="concludis_success.html" onsubmit="return false">
+ <label for="ipt-sex">ANREDE</label>
+ <div id="ipt-sex-po-select" class="po-select dropdown"><select id="ipt-sex" name="sex" autocomplete="sex" class="po-select-native"><option value="">Bitte wählen</option><option value="m">Herr</option><option value="w">Frau</option><option value="n">Neutrale Anrede</option></select><span class="shown"></span></div>
+ <label for="ipt-title">AKADEMISCHER TITEL</label><input id="ipt-title" name="title" placeholder="Akademischer Titel" autocomplete="honorific-prefix">
+ <label for="ipt-firstname">VORNAME *</label><input id="ipt-firstname" name="firstname" required placeholder="Vorname" autocomplete="given-name">
+ <label for="ipt-lastname">NACHNAME *</label><input id="ipt-lastname" name="lastname" required placeholder="Nachname" autocomplete="family-name">
+ <label for="ipt-street">STRASSE, HAUSNR. *</label><input id="ipt-street" name="street" required placeholder="Straße, Hausnr." autocomplete="street-address">
+ <label for="ipt-zip">PLZ *</label><input id="ipt-zip" name="zip" required placeholder="PLZ" autocomplete="postal-code">
+ <label for="ipt-city">ORT *</label><input id="ipt-city" name="city" required placeholder="Ort" autocomplete="address-level2">
+ <label for="ipt-country">LAND *</label>
+ <div class="po-select dropdown"><select id="ipt-country" name="country" required class="po-select-native"><option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option></select></div>
+ <input type="text" id="country-autofill-helper" autocomplete="country-name" aria-label="Land">
+ <label for="ipt-email">E-MAIL *</label><input type="text" id="ipt-email" name="email" required placeholder="E-Mail" autocomplete="email">
+ <label for="ipt-phone-private">TELEFON, PRIVAT</label><input type="tel" id="ipt-phone-private" name="phone_private" placeholder="Telefon privat" autocomplete="home tel">
+ <label><input type="checkbox" id="ipt-disability-flag" name="disability_flag"> Ja, ich möchte eine Schwerbehinderung oder Gleichstellung angeben.</label>
+ <label for="ipt-disablility-note" class="hidden">FREIWILLIGE ANGABE ZUR SCHWERBEHINDERUNG ODER GLEICHSTELLUNG</label><textarea id="ipt-disablility-note" name="disability_note" class="hidden"></textarea>
+ <h3>Wie hast du diese Stelle gefunden?</h3>
+ <label for="ipt-source">ICH WURDE AUF DIE STELLE AUFMERKSAM ÜBER *</label>
+ <div class="po-select dropdown"><select id="ipt-source" name="source" required class="po-select-native"><option value="">Bitte wählen</option><option value="1">Indeed</option><option value="2">StepStone DE</option><option value="3">LinkedIn</option><option value="4">Unternehmenshomepage</option><option value="5">Sonstige</option><option value="6">Bundesagentur für Arbeit</option></select></div>
+ <h3>Dokumente</h3>
+ <div class="required-docs">Folgende Dokumente sind erforderlich: Anschreiben, Lebenslauf</div>
+ <div id="doc-error" class="error hidden">Es wurden nicht alle erforderlichen Dokumente hochgeladen. Es fehlt noch mindestens je eines der folgenden Dokumente: <span id="missing"></span></div>
+ <ul id="files"></ul>
+ <div class="dropzone"><div>Ziehe deine Datei einfach via Drag &amp; Drop in diesen Bereich oder … <button type="button" onclick="document.getElementById('main-upload').click()">wähle hier eine Datei aus</button></div>
+   <input type="file" class="upload-core-input" id="main-upload" multiple></div>
+ <div id="form-errors"></div>
+ <p>Nimm dir vor dem Absenden gern einen Moment Zeit, unsere <a href="#">Datenschutzhinweise</a> zu lesen.</p>
+ <button type="button" id="send">Bewerbung absenden</button>
+</form>
+<script>
+let n = 0;
+const types = ['Anschreiben','Lebenslauf','Zeugnis','Sonstige','Arbeitszeugnis'];
+function validateDocs(){
+  const chosen=[...document.querySelectorAll('select.ipt-filetype')].map(s=>s.options[s.selectedIndex].text);
+  const missing=['Anschreiben','Lebenslauf'].filter(t=>!chosen.includes(t));
+  document.getElementById('missing').textContent=missing.join(', ');
+  document.getElementById('doc-error').classList.toggle('hidden', !(missing.length && chosen.length));
+  return missing.length===0;
+}
+document.getElementById('main-upload').addEventListener('change', e => {
+  for (const f of e.target.files) {
+    const id = 'file-' + (++n);
+    const li = document.createElement('li');
+    const short = f.name.length > 28 ? f.name.slice(0,25) + '[...].' + f.name.split('.').pop() : f.name;
+    li.innerHTML = '<span class="fname">' + short + '</span> <div id="'+id+'-po-select" class="po-select dropdown">' +
+      '<select id="'+id+'" class="ipt-filetype po-select-native">' + types.map(t=>'<option>'+t+'</option>').join('') + '</select>' +
+      '<span class="shown">Anschreiben</span><ul class="menu">' + types.map(t=>'<li>'+t+'</li>').join('') + '</ul></div>';
+    document.getElementById('files').appendChild(li);
+    const wrap = li.querySelector('.po-select'), sel = li.querySelector('select'), menu = li.querySelector('.menu');
+    wrap.addEventListener('click', ev => { if (ev.target.tagName === 'LI') return; menu.classList.toggle('open'); });
+    menu.querySelectorAll('li').forEach(item => item.addEventListener('click', ev => {
+      ev.stopPropagation(); sel.value = item.textContent; li.querySelector('.shown').textContent = item.textContent;
+      menu.classList.remove('open'); validateDocs(); }));
+    // как в настоящем concludis: событие change у скрытого select на проверку не влияет
+  }
+  validateDocs();
+});
+document.getElementById('send').addEventListener('click', () => {
+  const errs = [];
+  ['ipt-firstname','ipt-lastname','ipt-street','ipt-zip','ipt-city','ipt-email'].forEach(id => { const el=document.getElementById(id); if(!el.value){ el.setAttribute('aria-invalid','true'); errs.push('Pflichtfeld: '+id);} });
+  if (!document.getElementById('ipt-source').value) errs.push('Bitte wähle eine Quelle');
+  if (!validateDocs()) errs.push('Es wurden nicht alle erforderlichen Dokumente hochgeladen');
+  document.getElementById('form-errors').innerHTML = errs.map(e=>'<div class="error">'+e+'</div>').join('');
+  if (!errs.length) {
+    window.sessionStorage && (window.name = JSON.stringify({sex: document.getElementById('ipt-sex').value, source: document.getElementById('ipt-source').options[document.getElementById('ipt-source').selectedIndex].text,
+      docs: [...document.querySelectorAll('select.ipt-filetype')].map(s=>s.value), street: document.getElementById('ipt-street').value, helper: document.getElementById('country-autofill-helper').value,
+      parse: document.getElementById('parse-cv').files.length}));
+    location.href = 'concludis_success.html';
+  }
+});
+</script>
+</body></html>

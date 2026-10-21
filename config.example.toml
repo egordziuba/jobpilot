@@ -1,0 +1,98 @@
+# JobPilot Auto — настройки. Секреты (пароль Gmail, ключ API) сюда НЕ пишутся — только в .env
+
+[run]
+# dry_run — всё ищет и готовит, письма работодателям НЕ уходят (сводка приходит тебе на почту).
+# live    — письма на подходящие вакансии уходят автоматически в пределах лимитов.
+send_mode = "dry_run"
+auto_send_tiers = ["close"]          # какие уровни отправлять без подтверждения: close | adjacent
+min_score_auto = 7                   # минимальный балл для автоотправки
+max_emails_per_day = 5
+max_emails_per_run = 3
+company_cooldown_days = 30           # не писать одной компании чаще, чем раз в N дней
+seconds_between_emails = [60, 150]   # случайная пауза между письмами
+report_email_to_self = true          # сводка после каждого запуска себе на почту
+check_inbox = true                   # проверять ответы и возвраты (IMAP Gmail)
+
+[applicant]
+name = "Max Mustermann"
+first_name = "Max"
+email = "max.mustermann@example.com"
+phone = "+49 151 23456789"
+address = "Musterstraße 12, 20095 Hamburg"
+hours_max = 20
+availability_de = "15–20 Stunden pro Woche (flexibel einteilbar)"
+availability_en = "15–20 hours per week (flexible schedule)"
+cv_file = "documents/Lebenslauf.pdf"
+cv_attachment_name = "Lebenslauf_Max_Mustermann.pdf"
+
+[forms]
+# Автозаполнение форм на сайтах работодателей: jp fill ID или todo.bat → «f».
+# Программа заполняет поля и грузит файлы, а отправляет только после твоего Enter.
+browser = "msedge"                   # msedge | chrome (используется установленный браузер, отдельный профиль)
+salutation = "Herr"
+country = "Deutschland"
+state = "Hamburg"                   # для полей «Bundesland»
+earliest_start = ""                  # пусто = поле «Eintrittsdatum» оставляю тебе; «ab sofort» = сегодняшняя дата / текст «ab sofort»
+birth_date = ""                      # пусто = дату рождения в формы не вписываю (она есть в резюме)
+linkedin_url = ""
+certificates = ["documents/zeugnisse/Zeugnis.pdf"]   # для полей «Zeugnisse»
+accept_privacy = false               # true = ставить только обязательную галочку согласия на обработку данных заявки (Talentpool/рассылки — никогда)
+auto_submit = false                  # true = нажимать «Absenden» без вопроса, если всё заполнено, капчи нет и вопросов не осталось
+# Зарплату, вопросы про разрешение на работу и прочие свободные вопросы программа не заполняет.
+
+[geo]
+home = [53.5503, 9.9930]             # где ты живёшь (широта, долгота)
+hamburg = [53.5503, 9.9930]
+max_km_from_hamburg = 35
+max_km_from_home = 40
+
+[search]
+max_age_days = 21
+request_pause_seconds = 0.6
+
+# Arbeitsagentur (Jobsuche): angebotsart 34 = Praktikum/Trainee/Werkstudent, 1 = Arbeit
+[[search.ba]]
+where = "Hamburg"
+radius_km = 35
+angebotsart = [34, 1]
+queries = [
+  "Werkstudent KI", "Werkstudent Künstliche Intelligenz", "Werkstudent AI",
+  "Werkstudent Automatisierung", "Werkstudent Prozessautomatisierung",
+  "Werkstudent Digitalisierung", "Werkstudent Prozessmanagement",
+  "Werkstudent Business Analyst", "Werkstudent Business Intelligence",
+  "Werkstudent Reporting", "Werkstudent Data", "Werkstudent Projektmanagement",
+  "Werkstudent Transformation", "Working Student AI", "Working Student Automation",
+]
+
+[[search.ba]]
+where = "Lüneburg"
+radius_km = 40
+angebotsart = [34]
+queries = ["Werkstudent"]
+
+[[search.ba]]
+where = ""                           # без места = вся Германия; берутся только явно удалённые с подходящим названием
+radius_km = 0
+angebotsart = [34]
+queries = ["Werkstudent remote KI", "Werkstudent remote Automatisierung", "Werkstudent remote Prozess",
+           "Werkstudent remote Daten", "Werkstudent remote Digitalisierung", "Werkstudent KI", "Werkstudent Automatisierung"]
+
+# Карьерные страницы компаний (официальные фиды ATS). slug — часть адреса.
+# [[search.personio]]
+# slug = "firmenname"                # https://firmenname.jobs.personio.de
+# company = "Firma GmbH"
+
+# Примеры, раскомментируй и впиши компанию:
+# [[search.greenhouse]]
+# token = "firmenname"               # https://boards.greenhouse.io/firmenname
+# company = "Firma GmbH"
+#
+# [[search.recruitee]]
+# slug = "firmenname"                # https://firmenname.recruitee.com
+# company = "Firma GmbH"
+
+[llm]
+# Необязательно. Если включено и в .env есть ANTHROPIC_API_KEY, модель только пересказывает
+# задачу работодателя одной фразой. Факты о тебе всегда берутся из profile/facts.toml.
+enabled = false
+model = "claude-haiku-5-5"

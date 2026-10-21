@@ -1,0 +1,12 @@
+# личные данные и секреты — никогда не в git
+.env
+config.toml
+profile/facts.toml
+documents/
+data/
+logs/
+scripts/python.txt
+# служебное
+__pycache__/
+*.pyc
+.pytest_cache/

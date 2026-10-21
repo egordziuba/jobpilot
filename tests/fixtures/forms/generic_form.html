@@ -1,0 +1,28 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Bewerbungsformular – Beispiel AG</title><style>.err{color:#c00}</style></head>
+<body><h1>Bewerbung: Werkstudent Digitalisierung</h1>
+<form id="f" onsubmit="return go(event)" novalidate>
+ <label>Vor- und Nachname * <input name="fullname" required></label><br>
+ <label>E-Mail-Adresse * <input type="email" name="mail" required></label><br>
+ <label>E-Mail wiederholen * <input type="email" name="mail2" required></label><br>
+ <label>Telefonnummer <input name="tel"></label><br>
+ <label>Straße <input name="str"></label> <label>Hausnummer <input name="hnr"></label><br>
+ <label>PLZ <input name="plz"></label> <label>Ort <input name="ort"></label><br>
+ <label>Wie haben Sie von uns erfahren? * <select name="quelle" required><option value="">Bitte wählen</option><option>Website</option><option>Bundesagentur für Arbeit</option><option>LinkedIn</option><option>Sonstiges</option></select></label><br>
+ <label>Gehaltsvorstellung * <input name="gehalt" required></label><br>
+ <label>Ihre Nachricht <textarea name="msg"></textarea></label><br>
+ <label>Lebenslauf (PDF) * <input type="file" name="cv" required></label><br>
+ <label>Weitere Unterlagen <input type="file" name="more" multiple></label><br>
+ <fieldset><legend>Arbeitserlaubnis vorhanden? *</legend><label><input type="radio" name="permit" value="ja" required> ja</label><label><input type="radio" name="permit" value="nein"> nein</label></fieldset>
+ <label><input type="checkbox" name="talentpool"> Bitte nehmen Sie mich in den Talentpool für zukünftige Stellen auf</label><br>
+ <label><input type="checkbox" name="privacy" required> Ich stimme der Datenschutzerklärung zu *</label><br>
+ <div id="e"></div>
+ <button type="submit">Bewerbung absenden</button>
+</form>
+<script>
+function go(ev){ ev.preventDefault(); const f=ev.target; const errs=[];
+ [...f.elements].forEach(x=>{ if(x.required && ((x.type==='checkbox'&&!x.checked) || (x.type==='radio' && !f.querySelector('input[name='+x.name+']:checked')) || (x.type==='file'&&!x.files.length) || (!['checkbox','radio','file'].includes(x.type)&&!x.value))) errs.push('Bitte füllen Sie das Pflichtfeld aus: '+x.name); });
+ document.getElementById('e').innerHTML=[...new Set(errs)].map(x=>'<div class="err" role="alert">'+x+'</div>').join('');
+ if(!errs.length){ window.name=JSON.stringify({fullname:f.fullname.value, mail2:f.mail2.value, str:f.str.value, hnr:f.hnr.value, quelle:f.quelle.value, msg:f.msg.value.slice(0,40), more:f.more.files.length, talent:f.talentpool.checked});
+   document.body.innerHTML='<h2>Ihre Bewerbung wurde erfolgreich übermittelt.</h2>'; }
+ return false; }
+</script></body></html>
