@@ -22,7 +22,10 @@ discover → verify → prioritise → prepare → send → confirm → reply
 
 ### Application forms (optional)
 
-`jp fill ID` opens the employer's form in the installed Edge/Chrome via Playwright: it clicks "Apply", picks "necessary cookies only", fills contact fields, uploads CV / cover letter / certificates and recognises common applicant-tracking systems (concludis, Personio, d.vinci, SuccessFactors and generic forms). Salary, work-permit and free-text questions are left to the user and highlighted. CAPTCHAs are never touched. The form is submitted only after the user confirms, and an application counts as submitted only when the site shows a confirmation.
+`jp fill ID` opens the employer's form in the installed Edge/Chrome via Playwright: it clicks "Apply", picks "necessary cookies only", fills contact fields, uploads CV / cover letter / certificates and recognises common applicant-tracking systems (concludis, Personio, d.vinci, SuccessFactors and generic forms). By default, salary, work-permit and free-text questions are left to the user and highlighted. CAPTCHAs are never touched. The form is submitted only after the user confirms, and an application counts as submitted only when the site shows a confirmation.
+
+- Optional `[forms] available_until = ""`: availability end date in `DD.MM.YYYY`; empty leaves it to the user (date inputs receive `YYYY-MM-DD`).
+- Optional `[forms] salary_hourly = 0`: gross hourly salary in EUR; a positive number enables autofill and selects an offered hourly period; annual salary questions always stay for the user.
 
 ## Stack
 

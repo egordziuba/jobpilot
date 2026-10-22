@@ -33,12 +33,14 @@ salutation = "Herr"
 country = "Deutschland"
 state = "Hamburg"                   # для полей «Bundesland»
 earliest_start = ""                  # пусто = поле «Eintrittsdatum» оставляю тебе; «ab sofort» = сегодняшняя дата / текст «ab sofort»
+available_until = ""                 # дата DD.MM.YYYY; пусто = оставить тебе
+salary_hourly = 0                    # EUR брутто в час; 0 = оставить тебе; годовую зарплату не заполняю
 birth_date = ""                      # пусто = дату рождения в формы не вписываю (она есть в резюме)
 linkedin_url = ""
 certificates = ["documents/zeugnisse/Zeugnis.pdf"]   # для полей «Zeugnisse»
 accept_privacy = false               # true = ставить только обязательную галочку согласия на обработку данных заявки (Talentpool/рассылки — никогда)
 auto_submit = false                  # true = нажимать «Absenden» без вопроса, если всё заполнено, капчи нет и вопросов не осталось
-# Зарплату, вопросы про разрешение на работу и прочие свободные вопросы программа не заполняет.
+# Без salary_hourly зарплату программа не заполняет; вопросы про разрешение на работу и прочие свободные вопросы оставляет тебе.
 
 [geo]
 home = [53.5503, 9.9930]             # где ты живёшь (широта, долгота)

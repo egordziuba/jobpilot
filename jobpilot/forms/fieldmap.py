@@ -1,7 +1,7 @@
 """Чистая логика автозаполнения (без браузера): что это за поле, чем его заполнить, что оставить тебе.
 
-Правило: заполняются только поля, ответ на которые есть в config.toml / резюме. Зарплата, дата
-выхода, вопросы про разрешение на работу, Schwerbehinderung, свободные вопросы работодателя и
+Правило: заполняются только поля, ответ на которые есть в config.toml / резюме. Зарплата и даты
+без настройки, вопросы про разрешение на работу, Schwerbehinderung, свободные вопросы работодателя и
 галочки согласия НЕ заполняются автоматически — они попадают в список «сделай сам».
 """
 from __future__ import annotations
@@ -31,6 +31,9 @@ class Profile:
     hours_max: int = 0
     availability: str = ""
     accept_privacy: bool = False
+    available_until: str = ""
+    salary_hourly: float = 0
+    hours_min: int = 0
 
     @property
     def full_name(self) -> str:
@@ -50,6 +53,7 @@ class Profile:
 def build_profile(settings) -> Profile:
     ap = settings.applicant
     fm = settings.cfg.get("forms", {})
+    hours = settings.cfg.get("application", {})
     name = ap.get("name", "").strip()
     first = ap.get("first_name") or (name.split(" ")[0] if name else "")
     last = name[len(first):].strip() if name.startswith(first) else (name.split(" ")[-1] if name else "")
@@ -74,9 +78,12 @@ def build_profile(settings) -> Profile:
         birth_date=fm.get("birth_date", ""),
         earliest_start=fm.get("earliest_start", ""),
         linkedin=fm.get("linkedin_url", ""),
-        hours_max=int(ap.get("hours_max", 0) or 0),
+        hours_max=int(hours.get("hours_max", ap.get("hours_max", 0)) or 0),
         availability=ap.get("availability_de", ""),
         accept_privacy=bool(fm.get("accept_privacy", False)),
+        available_until=fm.get("available_until", ""),
+        salary_hourly=float(fm.get("salary_hourly", 0) or 0),
+        hours_min=int(hours.get("hours_min", ap.get("hours_min", 0)) or 0),
     )
 
 
@@ -111,6 +118,7 @@ TEXT_RULES: list[tuple[str, str]] = [
     ("birth_date", r"geburt|birth|\bbday\b|\bdob\b"),
     ("source", r"aufmerksam|quelle|\bsource\b|how did you (hear|find)|wie (bist|sind|haben|hast) (du|sie)|gefunden|herkunft|referr|kanal|channel|where did you|erfahren"),
     ("salary", r"gehalt|salary|verguetung|compensation|\blohn\b|jahresbrutto|einkommen|stundenlohn|wage"),
+    ("available_until", r"bis wann.{0,60}verfuegbar|verfuegbar\s+bis|available\s+until|available_until"),
     ("start_date", r"eintritt|verfuegbar ab|verfuegbarkeit|\bstart|beginn|fruehest|earliest|available from|ab wann|kuendigungsfrist|notice period"),
     ("hours", r"wochenstunden|stunden pro woche|stunden/woche|hours per week|wochenarbeitszeit|stundenumfang|arbeitsumfang"),
     ("linkedin", r"linkedin"),
@@ -137,8 +145,8 @@ FILE_RULES: list[tuple[str, str]] = [
 # Ключи, которые программа заполняет сама (если есть значение).
 AUTO_KEYS = {"salutation", "first_name", "last_name", "full_name", "email", "email_confirm", "phone", "street",
              "house_no", "zip", "city", "state", "country", "birth_date", "source", "start_date", "hours",
-             "linkedin", "message"}
-# Ключи, которые всегда оставляются тебе (если поле обязательное — попадёт в список дел).
+             "linkedin", "message", "available_until"}
+# Ключи, которые оставляются тебе (зарплата — кроме настроенной почасовой ставки).
 ASK_KEYS = {"salary": "зарплатные ожидания (считаются под эту роль и часы)",
             "permit": "вопрос про разрешение на работу / гражданство",
             "disability": "Schwerbehinderung (добровольно)",
@@ -230,6 +238,8 @@ SOURCE_OPTIONS = {
     "xing": [r"xing"],
 }
 PLACEHOLDER_OPTION = re.compile(r"^(bitte |please )?(waehlen|auswaehlen|select|choose|--|-|\.\.\.)|^$|\*$|^anrede|^wie bist|^land$")
+HOURLY_OPTIONS = [r"\bpro stunde\b", r"\bper hour\b"]
+ANNUAL_SALARY = re.compile(r"\bp\s*\.\s*a\s*\.|\bpro jahr\b|\bjaehrlich\b|\bannual\b")
 
 
 def pick_option(options: list[str], patterns: list[str]) -> str | None:
@@ -279,6 +289,23 @@ def value_for(key: str, d: dict, p: Profile, job: dict, letter_text: str):
     """(вид действия, значение) или None, если заполнять не нужно/нельзя."""
     tag, typ = d.get("tag"), (d.get("type") or "").lower()
     opts = d.get("options") or []
+    if key == "salary":
+        if p.salary_hourly <= 0 or ANNUAL_SALARY.search(field_hay(d)):
+            return None
+        if tag == "select":
+            o = pick_option(opts, HOURLY_OPTIONS)
+            return ("select", o) if o else None
+        n = f"{p.salary_hourly:g}"
+        if typ == "number":
+            return ("fill", n)
+        text = f"{n} € brutto pro Stunde"
+        if re.search(r"stundenzahl|wochenstunden|stunden pro woche|hours per week", fold(d.get("label", ""))):
+            minimum, maximum = p.hours_min, p.hours_max
+            if minimum > 0 or maximum > 0:
+                weekly = (f"{minimum}–{maximum}" if minimum > 0 and maximum > 0 and minimum != maximum
+                          else str(minimum if minimum > 0 else maximum))
+                text += f" bei {weekly} Stunden pro Woche"
+        return ("fill", text)
     if tag == "select":
         if key == "salutation":
             o = pick_option(opts, SALUTATION_OPTIONS.get(p.salutation, []))
@@ -295,6 +322,7 @@ def value_for(key: str, d: dict, p: Profile, job: dict, letter_text: str):
         "first_name": p.first_name, "last_name": p.last_name, "full_name": p.full_name,
         "email": p.email, "email_confirm": p.email, "phone": p.phone, "zip": p.zip, "city": p.city,
         "state": p.state, "linkedin": p.linkedin, "birth_date": p.birth_date, "start_date": p.earliest_start,
+        "available_until": p.available_until,
     }
     if key == "country":
         return ("fill", p.country)
@@ -320,7 +348,7 @@ def value_for(key: str, d: dict, p: Profile, job: dict, letter_text: str):
             if re.search(r"tt\.mm|dd\.mm|datum|date", hint):
                 return ("fill", today.strftime("%d.%m.%Y"))
             return ("fill", "ab sofort")
-        if key in ("birth_date", "start_date") and v and typ == "date":
+        if key in ("birth_date", "start_date", "available_until") and v and typ == "date":
             m = re.match(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", v)
             v = f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}" if m else v
         return ("fill", v) if v else None
@@ -367,8 +395,18 @@ def plan_fields(descs: list[dict], p: Profile, job: dict, letter_text: str, docs
             continue
         if (d.get("value") or "").strip() and tag != "select":
             continue  # уже заполнено (тобой или браузером) — не трогаю; списки выставляются всегда
+        salary_siblings = []
+        if tag == "select":
+            salary_siblings = [s for s, k in keyed if k == "salary" and s.get("tag") != "select"
+                               and s["idx"] in (d.get("siblings") or [])]
+            if key == "unknown" and salary_siblings:
+                key = "salary"
         if key in ASK_KEYS:
-            if required:
+            res = (value_for(key, d, p, job, letter_text) if key == "salary"
+                   and not any(ANNUAL_SALARY.search(field_hay(s)) for s in salary_siblings) else None)
+            if res:
+                plan.actions.append(Action(d["idx"], key, res[0], res[1], label))
+            elif required:
                 plan.todo.append(f"заполни сам: {ASK_KEYS[key]} — «{label}»")
             else:
                 plan.skipped.append(f"не заполняю: «{label}»")
@@ -383,6 +421,7 @@ def plan_fields(descs: list[dict], p: Profile, job: dict, letter_text: str, docs
             elif required:
                 why = {"source": "где нашёл вакансию (подходящего варианта не нашёл)",
                        "start_date": "дата начала (в config.toml → [forms] earliest_start пусто)",
+                       "available_until": "доступность до (в config.toml → [forms] available_until пусто)",
                        "birth_date": "дата рождения"}.get(key, "")
                 plan.todo.append(f"заполни сам: {why or label} — «{label}»")
             continue

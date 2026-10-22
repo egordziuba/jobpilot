@@ -61,6 +61,11 @@ COLLECT_JS = r"""
     if (['file', 'checkbox', 'radio', 'select-one'].includes(type)) { d.contexts = ctxs(el); d.context = d.contexts[1] || d.contexts[0] || ''; }
     out.push(d);
   });
+  out.filter(d => d.tag === 'select').forEach(d => {
+    const el = document.querySelector('[data-jp="' + d.idx + '"]');
+    d.siblings = [...el.parentElement.children].filter(e => e !== el && e.hasAttribute('data-jp'))
+      .map(e => Number(e.getAttribute('data-jp')));
+  });
   return out;
 }
 """

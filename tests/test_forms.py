@@ -22,11 +22,11 @@ FIX = Path(__file__).resolve().parent / "fixtures" / "forms"
 
 
 def D(idx, tag, typ, id_="", name="", label="", placeholder="", autocomplete="", required=False, visible=True,
-      multiple=False, options=None, contexts=None, in_form=True):
+      multiple=False, options=None, contexts=None, in_form=True, siblings=None):
     return {"idx": idx, "tag": tag, "type": typ, "id": id_, "name": name, "label": label, "placeholder": placeholder,
             "autocomplete": autocomplete, "required": required, "visible": visible, "multiple": multiple,
             "options": options or [], "contexts": contexts or [], "context": (contexts or [""])[0] if contexts else "",
-            "value": "", "checked": False, "in_form": in_form}
+            "value": "", "checked": False, "in_form": in_form, "siblings": siblings or []}
 
 
 # Поля реальной формы concludis (обезличено)
@@ -151,6 +151,135 @@ class FieldMapTests(unittest.TestCase):
         vals = {a.idx: a.value for a in plan.actions}
         today = datetime.now().date()
         self.assertEqual(vals, {1: "ab sofort", 2: today.isoformat(), 3: today.strftime("%d.%m.%Y")})
+        self.assertEqual(plan.todo, [])
+
+    def test_available_until(self):
+        self.settings.cfg.setdefault("forms", {})["available_until"] = "30.09.2027"
+        prof = build_profile(self.settings)
+        descs = [D(1, "input", "text", label="Bis wann sind Sie (mindestens) verfügbar?", required=True),
+                 D(2, "input", "date", name="start", label="Verfügbar bis", required=True),
+                 D(3, "input", "text", label="Available until", required=True)]
+        self.assertEqual([classify(d) for d in descs], ["available_until"] * 3)
+        plan = plan_fields(descs, prof, {}, "", {})
+        self.assertEqual({a.idx: a.value for a in plan.actions},
+                         {1: "30.09.2027", 2: "2027-09-30", 3: "30.09.2027"})
+        self.assertEqual(plan.todo, [])
+
+    def test_available_until_empty_config(self):
+        for forms in ({}, {"available_until": ""}):
+            with self.subTest(forms=forms):
+                self.settings.cfg["forms"] = forms
+                prof = build_profile(self.settings)
+                self.assertEqual(prof.available_until, "")
+                descs = [D(1, "input", "date", label="Available until", required=True)]
+                plan = plan_fields(descs, prof, {}, "", {})
+                self.assertEqual(plan.actions, [])
+                self.assertEqual(len(plan.todo), 1)
+                self.assertIn("available_until", plan.todo[0])
+
+    def test_salary_hourly(self):
+        for amount, number in ((20, "20"), (20.5, "20.5")):
+            with self.subTest(amount=amount):
+                self.settings.cfg.setdefault("forms", {})["salary_hourly"] = amount
+                prof = build_profile(self.settings)
+                descs = [D(1, "input", "number", label="Gehaltsvorstellung", required=True),
+                         D(2, "input", "text", label="Gehaltswunsch", required=True),
+                         D(3, "input", "number", label="Vorstellung Bruttostundenlohn", required=True),
+                         D(4, "input", "text", label="Salary expectation", required=True)]
+                plan = plan_fields(descs, prof, {}, "", {})
+                self.assertEqual({a.idx: a.value for a in plan.actions},
+                                 {1: number, 2: f"{number} € brutto pro Stunde",
+                                  3: number, 4: f"{number} € brutto pro Stunde"})
+                self.assertEqual(plan.todo, [])
+
+    def test_salary_hourly_empty_or_nonpositive_config(self):
+        for forms in ({}, {"salary_hourly": 0}, {"salary_hourly": -10}):
+            with self.subTest(forms=forms):
+                self.settings.cfg["forms"] = forms
+                descs = [D(1, "input", "number", label="Gehaltswunsch", required=True),
+                         D(2, "select", "select-one", label="Zeitraum", required=True,
+                           options=["pro Jahr", "pro Stunde"], siblings=[1])]
+                plan = plan_fields(descs, build_profile(self.settings), {}, "", {})
+                self.assertEqual(plan.actions, [])
+                self.assertEqual(len(plan.todo), 2)
+
+    def test_salary_hourly_with_weekly_hours(self):
+        self.settings.cfg.setdefault("forms", {})["salary_hourly"] = 20.5
+        for section in ("application", "applicant"):
+            for minimum, maximum, expected in ((15, 20, "15–20"), (20, 20, "20"),
+                                               (15, None, "15"), (None, 20, "20")):
+                with self.subTest(section=section, minimum=minimum, maximum=maximum):
+                    for name in ("application", "applicant"):
+                        values = self.settings.cfg.setdefault(name, {})
+                        values.pop("hours_min", None)
+                        values.pop("hours_max", None)
+                    configured = self.settings.cfg[section]
+                    if minimum is not None:
+                        configured["hours_min"] = minimum
+                    if maximum is not None:
+                        configured["hours_max"] = maximum
+                    prof = build_profile(self.settings)
+                    labels = ["Bitte nenne uns Deine Gehaltsvorstellung (Stundenlohn) unter Angabe der wöchentlichen Stundenzahl.",
+                              "Gehaltswunsch und Wochenstunden", "Gehaltsvorstellung und Stunden pro Woche",
+                              "Salary expectation and hours per week"]
+                    descs = [D(i, "input", "text", label=label, required=True) for i, label in enumerate(labels)]
+                    descs += [D(4, "input", "number", label=labels[0], required=True),
+                              D(5, "input", "text", label="Gehaltsvorstellung", name="hours_per_week", required=True)]
+                    plan = plan_fields(descs, prof, {}, "", {})
+                    text = f"20.5 € brutto pro Stunde bei {expected} Stunden pro Woche"
+                    self.assertEqual({a.idx: a.value for a in plan.actions},
+                                     {0: text, 1: text, 2: text, 3: text, 4: "20.5", 5: "20.5 € brutto pro Stunde"})
+                    self.assertEqual(plan.todo, [])
+
+    def test_salary_hourly_weekly_hours_not_configured(self):
+        self.settings.cfg.setdefault("forms", {})["salary_hourly"] = 20
+        for configured in ({}, {"hours_min": 0, "hours_max": 0}):
+            with self.subTest(configured=configured):
+                for section in ("application", "applicant"):
+                    values = self.settings.cfg.setdefault(section, {})
+                    values.pop("hours_min", None)
+                    values.pop("hours_max", None)
+                    values.update(configured)
+                descs = [D(1, "input", "text", label="Gehaltsvorstellung und Wochenstunden", required=True)]
+                plan = plan_fields(descs, build_profile(self.settings), {}, "", {})
+                self.assertEqual({a.idx: a.value for a in plan.actions}, {1: "20 € brutto pro Stunde"})
+                self.assertEqual(plan.todo, [])
+
+    def test_salary_hourly_period_select(self):
+        self.profile.salary_hourly = 20
+        for hourly in ("pro Stunde", "per hour"):
+            with self.subTest(hourly=hourly):
+                descs = [D(1, "input", "number", label="Gehaltsvorstellung", required=True),
+                         D(2, "select", "select-one", label="Zeitraum", required=True,
+                           options=["Bitte wählen", "pro Jahr", hourly], siblings=[1]),
+                         D(3, "select", "select-one", label="Anderer Zeitraum",
+                           options=["pro Jahr", hourly])]
+                plan = plan_fields(descs, self.profile, {}, "", {})
+                self.assertEqual({a.idx: (a.kind, a.value) for a in plan.actions},
+                                 {1: ("fill", "20"), 2: ("select", hourly)})
+                self.assertEqual(plan.todo, [])
+
+    def test_salary_annual_left_to_user(self):
+        self.profile.salary_hourly = 20
+        for annual in ("p.a.", "pro Jahr", "jährlich", "annual"):
+            for typ in ("number", "text"):
+                with self.subTest(annual=annual, typ=typ):
+                    descs = [D(1, "input", typ, label=f"Gehaltsvorstellung ({annual})", required=True),
+                             D(2, "select", "select-one", label="Zeitraum", required=True,
+                               options=["pro Jahr", "pro Stunde"], siblings=[1])]
+                    plan = plan_fields(descs, self.profile, {}, "", {})
+                    self.assertEqual(plan.actions, [])
+                    self.assertEqual(len(plan.todo), 2)
+
+    def test_configured_fields_preserve_existing_values(self):
+        self.profile.available_until = "30.09.2027"
+        self.profile.salary_hourly = 20
+        descs = [D(1, "input", "text", label="Verfügbar bis", required=True),
+                 D(2, "input", "number", label="Gehaltswunsch", required=True)]
+        descs[0]["value"] = "31.12.2027"
+        descs[1]["value"] = "25"
+        plan = plan_fields(descs, self.profile, {}, "", {})
+        self.assertEqual(plan.actions, [])
         self.assertEqual(plan.todo, [])
 
     def test_source_options(self):
