@@ -196,7 +196,8 @@ def make_project(send_mode="dry_run", smtp=True, with_personio=False, extra_run=
     settings.cfg["search"]["ba"] = [{"where": "Hamburg", "radius_km": 35, "angebotsart": [34], "queries": ["Werkstudent KI"]}]
     settings.cfg["search"]["personio"] = [{"slug": "acme", "company": "ACME GmbH"}] if with_personio else []
     # тесты не зависят от личных настроек: осторожные значения по умолчанию
-    settings.cfg.setdefault("forms", {}).update({"accept_privacy": False, "earliest_start": "", "auto_submit": False})
+    settings.cfg.setdefault("forms", {}).update({"accept_privacy": False, "earliest_start": "", "auto_submit": False,
+                                            "available_until": "", "salary_hourly": 0})
     return tmp, settings
 
 
