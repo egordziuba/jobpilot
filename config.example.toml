@@ -19,6 +19,7 @@ first_name = "Max"
 email = "max.mustermann@example.com"
 phone = "+49 151 23456789"
 address = "Musterstraße 12, 20095 Hamburg"
+hours_min = 15
 hours_max = 20
 availability_de = "15–20 Stunden pro Woche (flexibel einteilbar)"
 availability_en = "15–20 hours per week (flexible schedule)"

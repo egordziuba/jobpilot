@@ -205,11 +205,11 @@ class FieldMapTests(unittest.TestCase):
 
     def test_salary_hourly_with_weekly_hours(self):
         self.settings.cfg.setdefault("forms", {})["salary_hourly"] = 20.5
-        for section in ("application", "applicant"):
+        for section in ("applicant",):
             for minimum, maximum, expected in ((15, 20, "15–20"), (20, 20, "20"),
                                                (15, None, "15"), (None, 20, "20")):
                 with self.subTest(section=section, minimum=minimum, maximum=maximum):
-                    for name in ("application", "applicant"):
+                    for name in ("applicant",):
                         values = self.settings.cfg.setdefault(name, {})
                         values.pop("hours_min", None)
                         values.pop("hours_max", None)
@@ -235,7 +235,7 @@ class FieldMapTests(unittest.TestCase):
         self.settings.cfg.setdefault("forms", {})["salary_hourly"] = 20
         for configured in ({}, {"hours_min": 0, "hours_max": 0}):
             with self.subTest(configured=configured):
-                for section in ("application", "applicant"):
+                for section in ("applicant",):
                     values = self.settings.cfg.setdefault(section, {})
                     values.pop("hours_min", None)
                     values.pop("hours_max", None)

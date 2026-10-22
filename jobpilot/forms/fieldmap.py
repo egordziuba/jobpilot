@@ -53,7 +53,6 @@ class Profile:
 def build_profile(settings) -> Profile:
     ap = settings.applicant
     fm = settings.cfg.get("forms", {})
-    hours = settings.cfg.get("application", {})
     name = ap.get("name", "").strip()
     first = ap.get("first_name") or (name.split(" ")[0] if name else "")
     last = name[len(first):].strip() if name.startswith(first) else (name.split(" ")[-1] if name else "")
@@ -78,12 +77,12 @@ def build_profile(settings) -> Profile:
         birth_date=fm.get("birth_date", ""),
         earliest_start=fm.get("earliest_start", ""),
         linkedin=fm.get("linkedin_url", ""),
-        hours_max=int(hours.get("hours_max", ap.get("hours_max", 0)) or 0),
+        hours_max=int(ap.get("hours_max", 0) or 0),
         availability=ap.get("availability_de", ""),
         accept_privacy=bool(fm.get("accept_privacy", False)),
         available_until=fm.get("available_until", ""),
         salary_hourly=float(fm.get("salary_hourly", 0) or 0),
-        hours_min=int(hours.get("hours_min", ap.get("hours_min", 0)) or 0),
+        hours_min=int(ap.get("hours_min", 0) or 0),
     )
 
 
