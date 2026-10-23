@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import email
+import hashlib
 import imaplib
 import logging
 import re
@@ -14,8 +15,11 @@ import ssl
 from datetime import datetime
 from email.header import decode_header, make_header
 from email.message import EmailMessage
-from email.utils import formataddr, formatdate, make_msgid
+from email.policy import default
+from email.utils import formataddr, formatdate, make_msgid, parsedate_to_datetime
 from pathlib import Path
+
+from .textutil import strip_html
 
 log = logging.getLogger("jobpilot.mail")
 
@@ -122,7 +126,7 @@ def send_self(settings, subject: str, body: str, smtp_factory=None) -> None:
 
 
 # ---------------------------------------------------------------- IMAP
-AUTO_REPLY = re.compile(r"eingangsbest|eingang (ihrer|deiner) bewerbung|(ihre|deine) bewerbung ist (bei uns )?eingegangen|automatische antwort|auto-?reply|"
+AUTO_REPLY = re.compile(r"eingangsbest\w*|eingang (ihrer|deiner) bewerbung|(ihre|deine) bewerbung ist (bei uns )?eingegangen|automatische antwort|auto-?reply|"
                         r"automatic reply|out of office|abwesen|we have received your application|thank you for your application|"
                         r"vielen dank f(ü|ue)r (ihre|deine) bewerbung|wir haben (ihre|deine) bewerbung (erhalten|bekommen)|bewerbung erhalten", re.I)
 JOB_BOARDS = ("arbeitsagentur", "stepstone", "linkedin", "indeed", "xing", "glassdoor", "monster", "stellenwerk", "jobware", "kununu")
@@ -144,8 +148,6 @@ def _company_word(name: str) -> str:
         if len(w) >= 4 and w.isascii() and w.lower() not in LEGAL:
             return w
     return ""
-INVITE = re.compile(r"vorstellungsgespr|kennenlern|interview|telefonat|termin|einladung|gespräch", re.I)
-REJECT = re.compile(r"leider|absage|nicht berücksichtigen|anderen kandidat|unfortunately|not to move forward", re.I)
 GENERIC_DOMAINS = {"gmail.com", "googlemail.com", "gmx.de", "gmx.net", "web.de", "outlook.com", "hotmail.com", "yahoo.com", "t-online.de"}
 
 
@@ -163,54 +165,124 @@ def _imap_date(iso: str) -> str:
     return d.strftime("%d-%b-%Y")
 
 
-OUT_OF_OFFICE = re.compile(r"abwesen|out of office|nicht im b(ü|ue)ro|automatic reply|automatische antwort|auto-?reply", re.I)
+OUT_OF_OFFICE = re.compile(
+    r"\bout[ -]of[ -](?:the[ -])?office\b|\babwesenheits(?:notiz|nachricht|assistent)\b|"
+    r"\b(?:ich bin|bin derzeit|bin aktuell)\s+(?:derzeit\s+|aktuell\s+|bis\s+[^.!?]*?\s+)?abwesend\b|"
+    r"\bnicht im b(?:ü|ue)ro\b|\b(?:I am|I'm)\s+(?:currently\s+)?(?:away|on (?:annual )?leave|on vacation)\b", re.I)
+INVITE = re.compile(
+    r"\bvorstellungsgespr(?:ä|ae)ch\w*|\bkennenlerngespr(?:ä|ae)ch\w*|"
+    r"\b(?:(?:telefon|video|phone|telephone)[ -]?)?interview\w*|"
+    r"\bladen\s+(?:wir\s+)?(?:Sie|dich|euch)\b[^.!?]*?\bein\b|"
+    r"\b(?:Terminvorschl(?:ag|äge|aege)|wann h(?:ä|ae)tten Sie Zeit)\b", re.I)
+SCHEDULING_LINK = re.compile(r"https?://[^\s<>]*(?:calendly|teams|zoom|meet)[^\s<>]*", re.I)
+SCHEDULING_INVITE = re.compile(
+    r"\b(?:please\s+)?(?:book|schedule|choose|pick|select)\s+[^.!?]*?\b(?:time|slot|meeting|call)\b|"
+    r"\b(?:wir m(?:ö|oe)chten Sie|we (?:would like to|want to))\s+[^.!?]*?\b(?:kennenlernen|meet)\b|"
+    r"\b(?:bitte\s+)?(?:w(?:ä|ae)hlen|buchen|vereinbaren) Sie\s+[^.!?]*?\b(?:Termin|Zeitfenster)\b", re.I)
+REJECT = re.compile(
+    r"\bnicht\s+(?:weiter\s+)?ber(?:ü|ue)cksichtigen\b|"
+    r"\bf(?:ü|ue)r\s+(?:eine andere Person|einen anderen Kandidaten|eine andere Kandidatin)\s+entschieden\b|"
+    r"\bnot to move forward\b|\bdecided to proceed with other candidates\b", re.I)
+REQUEST_INFO = re.compile(
+    r"\bbitte senden Sie uns\b[^.!?]*?\b(?:Unterlagen|Zeugnisse|Immatrikulationsbescheinigung)\b|"
+    r"\bR(?:ü|ue)ckfrage\w*|\bcould you send\b", re.I)
+REPLY_RU = {"invite": "приглашение", "reject": "отказ", "request_info": "запрос документов / уточнение",
+            "confirm": "Получение подтверждено", "ooo": "автоответ об отсутствии", "other": "прочитай письмо"}
 
 
-def classify_reply(subject: str, text: str) -> str:
-    """confirm (подтверждение получения) | ooo (автоответ об отсутствии) | reject | invite | other"""
-    blob = subject + " " + text
-    if OUT_OF_OFFICE.search(blob):
-        return "ooo"
-    if REJECT.search(blob):
-        return "reject"
-    if AUTO_REPLY.search(blob):
-        return "confirm"
-    if INVITE.search(blob):
-        return "invite"
-    return "other"
+def classify_reply(subject: str, text: str) -> tuple[str, str]:
+    """Приоритет правил: отсутствие → приглашение → отказ → уточнение → получение.
+
+    Возвращаем исходную фразу как объяснение. Общие слова «Termin», «Gespräch»,
+    «leider» и техническое «Auto-Reply» сами по себе не означают приглашение/отказ/отсутствие.
+    """
+    blob = re.sub(r"\s+", " ", subject) + ". " + re.sub(r"\s+", " ", text)
+    for kind, rule in (("ooo", OUT_OF_OFFICE), ("invite", INVITE)):
+        if match := rule.search(blob):
+            return kind, match.group(0)
+    if SCHEDULING_LINK.search(blob) and (match := SCHEDULING_INVITE.search(blob)):
+        return "invite", match.group(0)
+    for sentence in re.split(r"(?<=[.!?])\s+", blob):
+        if match := REJECT.search(sentence):
+            return "reject", match.group(0)
+        if re.search(r"\bleider\b", sentence, re.I) and re.search(r"\b(?:nicht|keine\w*|andere\w*|absagen)\b", sentence, re.I):
+            return "reject", sentence.strip()
+    for kind, rule in (("request_info", REQUEST_INFO), ("confirm", AUTO_REPLY)):
+        if match := rule.search(blob):
+            return kind, match.group(0)
+    return "other", ""
 
 
-def _fetch(imap, mid) -> tuple[str, str, str]:
-    typ, msgdata = imap.fetch(mid, "(BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)] BODY.PEEK[TEXT]<0.3000>)")
-    head_b, text_b = b"", b""
+def _fetch(imap, mid, metadata: dict | None = None) -> tuple[str, str, str]:
+    typ, msgdata = imap.fetch(mid, "(BODY.PEEK[]<0.200000>)")
+    if typ != "OK":
+        raise MailError("не удалось прочитать ответ работодателя")
+    whole_b, head_b, text_b = b"", b"", b""
     for part in msgdata:   # сервер может вернуть заголовки и текст в любом порядке — различаем по описанию части
         if not isinstance(part, tuple) or len(part) < 2:
             continue
         desc = part[0] if isinstance(part[0], bytes) else str(part[0]).encode()
         data = part[1] if isinstance(part[1], bytes) else str(part[1]).encode()
-        if b"HEADER" in desc.upper():
+        desc = desc.upper()
+        if b"BODY[]" in desc or b"RFC822" in desc:
+            whole_b = data
+        elif b"HEADER" in desc:
             head_b = data
-        else:
+        elif b"TEXT" in desc:
             text_b = data
-    head = email.message_from_bytes(head_b) if head_b else None
-    subject = _dec(head["Subject"]) if head else ""
-    sender = _dec(head["From"]) if head else ""
-    text = text_b.decode("utf-8", errors="replace")
-    return subject, sender, text
+    raw = whole_b or head_b + text_b
+    if not raw:
+        raise MailError("сервер вернул пустой ответ работодателя")
+    msg = email.message_from_bytes(raw, policy=default)
+    plain, html = [], []
+
+    def collect(part):
+        # Не обходим вложенные письма и multipart-вложения.
+        if part.get_content_disposition() == "attachment" or part.get_filename():
+            return
+        if part.get_content_maintype() == "multipart":
+            for child in part.iter_parts():
+                collect(child)
+        elif part.get_content_type() in ("text/plain", "text/html"):
+            try:
+                content = part.get_content()
+            except (LookupError, UnicodeError):
+                content = (part.get_payload(decode=True) or b"").decode("utf-8", errors="replace")
+            if content.strip():
+                if part.get_content_type() == "text/plain":
+                    plain.append(content)
+                else:
+                    # strip_html убирает href; сохраняем ссылки для правил планирования.
+                    links = re.findall(r'''href\s*=\s*["'](https?://[^"']+)["']''', content, re.I)
+                    html.append(strip_html(content) + "\n" + "\n".join(links))
+
+    collect(msg)
+    if metadata is not None:
+        metadata["key"] = str(msg.get("Message-ID") or hashlib.sha256(raw).hexdigest())
+        try:
+            metadata["date"] = parsedate_to_datetime(str(msg.get("Date", ""))).isoformat(timespec="seconds")
+        except (ValueError, TypeError, OverflowError):
+            metadata["date"] = datetime.now().isoformat(timespec="seconds")
+    return _dec(msg["Subject"]), _dec(msg["From"]), "\n".join(plain or html)
 
 
-def _record(store, r, kind: str, subject: str, notes: list[str]) -> bool:
+def _record(store, r, kind: str, evidence: str, subject: str, notes: list[str], metadata: dict) -> bool:
     """Записывает ответ. True — это настоящий ответ (дальше по этой вакансии не смотрим)."""
     if kind == "ooo":
         return False
-    if kind == "confirm":
-        if not (r["response_note"] or "").startswith("Получение подтверждено"):
-            store.update(r["id"], None, response_note=f"Получение подтверждено: {subject[:120]}")
-            notes.append(f"{r['company']}: работодатель подтвердил получение")
+    key = "reply:" + hashlib.sha256((r["id"] + "\0" + metadata["key"]).encode()).hexdigest()
+    if store.get_meta(key):
         return False
-    hint = {"reject": "похоже на отказ", "invite": "похоже на приглашение"}.get(kind, "прочитай письмо")
-    store.update(r["id"], "response", hint, response_at=datetime.now().isoformat(timespec="seconds"),
-                 response_note=f"{subject[:150]} — {hint}")
+    hint = REPLY_RU[kind]
+    note = f"{hint}: «{evidence}»" if evidence else f"{hint}: {subject[:150]}"
+    if kind == "confirm":
+        status = "submitted" if r["status"] == "send_unknown" and not r["message_id"] else r["status"]
+        store.update(r["id"], status, note, response_note=note, response_at=metadata["date"])
+        store.set_meta(key, kind)
+        notes.append(f"{r['company']}: работодатель подтвердил получение — {note}")
+        return False
+    store.update(r["id"], "response", note, response_at=metadata["date"], response_note=note)
+    store.set_meta(key, kind)
     notes.append(f"{r['company']}: ответ «{subject[:80]}» — {hint}")
     return True
 
@@ -279,16 +351,19 @@ def check_inbox(settings, store, imap_factory=None) -> list[str]:
             who = addr if domain in GENERIC_DOMAINS else domain
             typ, data = imap.search(None, "SINCE", since, "FROM", who)
             ids = data[0].split() if data and data[0] else []
-            for mid in ids[-3:]:
-                subject, sender, text = _fetch(imap, mid)
-                if _record(store, store.get(r["id"]), classify_reply(subject, text), subject, notes):
+            for mid in ids:
+                metadata = {}
+                subject, sender, text = _fetch(imap, mid, metadata)
+                if _record(store, store.get(r["id"]), *classify_reply(subject, text), subject, notes, metadata):
                     break
             typ, data = imap.search(None, "SINCE", since, "FROM", "mailer-daemon", "BODY", addr)
             if data and data[0].split():
                 store.update(r["id"], "bounced", "возврат: адрес не принял письмо")
                 notes.append(f"{r['company']}: письмо вернулось")
         # 3) заявки через формы: подтверждения ATS и ответы (по домену сайта формы или названию компании)
-        for r in store.by_status("submitted", "applied_manually"):
+        forms = store.by_status("submitted", "applied_manually") + [
+            r for r in store.by_status("send_unknown") if not r["message_id"]]
+        for r in forms:
             if not r["sent_at"]:
                 continue
             since = _imap_date(r["sent_at"])
@@ -299,14 +374,20 @@ def check_inbox(settings, store, imap_factory=None) -> list[str]:
                     break
                 typ, data = imap.search(None, "SINCE", since, crit, value)
                 ids = [i for i in (data[0].split() if data and data[0] else []) if i not in seen]
-                for mid in ids[-3:]:
+                for mid in ids:
                     seen.add(mid)
-                    subject, sender, text = _fetch(imap, mid)
+                    metadata = {}
+                    subject, sender, text = _fetch(imap, mid, metadata)
                     if any(b in sender.lower() for b in JOB_BOARDS):
                         continue
                     if crit == "TEXT" and not re.search(r"bewerb|application|applying", subject + " " + text[:1500], re.I):
                         continue
-                    if _record(store, store.get(r["id"]), classify_reply(subject, text), subject, notes):
+                    kind, evidence = classify_reply(subject, text)
+                    if (r["status"] == "send_unknown" and kind == "confirm" and crit == "TEXT"
+                            and not any(a in sender.lower() for a in ATS_DOMAINS)
+                            and _company_word(r["company"]).lower() not in sender.lower()):
+                        continue
+                    if _record(store, store.get(r["id"]), kind, evidence, subject, notes, metadata):
                         done = True
                         break
     finally:

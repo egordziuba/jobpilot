@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 
 from .store import STATUS_RU
+from .mailer import REPLY_RU
 
 ACTIVE = ("queued", "prepared", "verified", "attempted", "send_unknown", "sent", "response", "interview", "offer", "bounced",
           "submitted", "applied_manually")
@@ -30,13 +31,21 @@ def _apply_link(r) -> str:
     return r["apply_url"] or r["external_url"] or r["source_url"] or ""
 
 
+def _reply_priority(r) -> int:
+    note = r["response_note"] or ""
+    for priority, kind in enumerate(("invite", "request_info")):
+        if note.startswith(REPLY_RU[kind] + ":"):
+            return priority
+    return 2
+
+
 def summary_email(settings, store, result) -> tuple[str, str]:
     mode = "РАБОЧИЙ (письма уходят)" if result.mode == "live" else "ПРОБНЫЙ (работодателям ничего не отправлено)"
     new = set(result.new_ids)
     queued = store.by_status("queued")
     prepared_new = [r for r in store.by_status("prepared") if r["id"] in new]
     unknown = store.by_status("send_unknown")
-    responses = store.by_status("response")
+    responses = sorted(store.by_status("response"), key=_reply_priority)
     lines = [
         f"JobPilot Auto — {datetime.now():%d.%m.%Y %H:%M} · режим: {mode}",
         "",
@@ -45,10 +54,10 @@ def summary_email(settings, store, result) -> tuple[str, str]:
         "",
     ]
     act = []
+    for r in responses:
+        act.append(f"• ОТВЕТ: {r['company']} — {r['title']} · {r['response_at'] or 'дата неизвестна'} — {r['response_note']}")
     for r in unknown:
         act.append(f"• НЕЯСНО, ушло ли письмо: {r['company']} — {r['title']}. Проверь «Отправленные»; повторно не отправляю.")
-    for r in responses:
-        act.append(f"• ОТВЕТ: {r['company']} — {r['response_note']}")
     for r in prepared_new:
         if r["channel"] == "email":
             act.append(f"• E-mail есть, нужна твоя проверка: {r['company']} — {r['title']} ({r['reason']})")
@@ -109,7 +118,7 @@ def _card(r, show_letter: bool = True, action: str = "") -> str:
     if show_letter and r["body"]:
         parts.append(f'<details><summary>Письмо: {_e(r["subject"])}</summary><pre>{_e(r["body"])}</pre></details>')
     if r["response_note"]:
-        parts.append(f'<div class="meta"><b>Почта:</b> {_e(r["response_note"])}</div>')
+        parts.append(f'<div class="meta"><b>Почта:</b> {_e(r["response_at"])} · {_e(r["response_note"])}</div>')
     parts.append("</div>")
     return "".join(parts)
 
@@ -130,10 +139,10 @@ def write_html(settings, store, result) -> str:
         body.append("<div class='card err'><b>Ошибки</b><ul>" + "".join(f"<li>{_e(e)}</li>" for e in result.errors) + "</ul></div>")
     if rows["send_unknown"] or rows["response"] or rows["bounced"]:
         body.append("<h2>Срочно</h2>")
+        for r in sorted(rows["response"], key=_reply_priority):
+            body.append(_card(r, False, f"Отметить: <code>jp mark {_e(r['id'])} interview</code> или <code>rejected</code>"))
         for r in rows["send_unknown"]:
             body.append(_card(r, False, "Проверь «Отправленные» в Gmail. Повторно письмо не отправляется."))
-        for r in rows["response"]:
-            body.append(_card(r, False, f"Отметить: <code>jp mark {_e(r['id'])} interview</code> или <code>rejected</code>"))
         for r in rows["bounced"]:
             body.append(_card(r, False, "Письмо не доставлено — подай через сайт компании."))
     if rows["queued"]:
