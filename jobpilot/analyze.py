@@ -74,7 +74,7 @@ FULL_REMOTE = re.compile(r"100\s*%\s*remote|vollstandig remote|voll remote|fully
 
 # ---------------------------------------------------------------- канал подачи
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
-BAD_EMAIL = re.compile(r"arbeitsagentur\.de|example\.|stepstone|indeed|linkedin|xing|personio|greenhouse|recruitee|softgarden|"
+BAD_EMAIL = re.compile(r"arbeitsagentur\.de|example\.|stepstone|indeed|linkedin|xing|personio|greenhouse|recruitee|softgarden|ashbyhq|workable|"
                        r"noreply|no-reply|donotreply|datenschutz|privacy|^dsb@|dpo@|presse@|press@|webmaster")
 APPLY_NEAR = re.compile(r"bewirb|bewerb|unterlagen|lebenslauf|\bcv\b|application|apply|schick|sende|zusenden|richten sie|reach out")
 APPLY_STRONG = re.compile(r"bewirb dich|bewerben sie sich|bewerbung (an|per|bitte|richten|senden|schicken|mit)|unterlagen (an|per|bitte)|"

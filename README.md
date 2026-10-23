@@ -12,7 +12,7 @@ discover → verify → prioritise → prepare → send → confirm → reply
 
 | Stage | How |
 |---|---|
-| Discover | Bundesagentur für Arbeit Jobsuche API, company ATS feeds (Personio, Greenhouse, Recruitee), manually added leads |
+| Discover | Bundesagentur für Arbeit Jobsuche API, company ATS feeds (Personio, Greenhouse, Recruitee, Lever, SmartRecruiters, Ashby, Workable), manually added leads |
 | Verify | Re-reads the posting at the source, skips closed or expired ones, de-duplicates across sources and against past applications |
 | Prioritise | Rule-based scoring by tasks (not just job title): *close* / *adjacent* fit, missing hard requirements (e.g. a mandatory tool or language level) are listed as gaps |
 | Prepare | Cover letter assembled from `profile/facts.toml` paragraphs; a deny-list blocks claims the candidate cannot prove; PDF letter rendered without external libraries |

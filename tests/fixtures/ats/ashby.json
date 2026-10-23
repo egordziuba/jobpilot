@@ -1,0 +1,19 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "title": "Working Student Automation",
+      "location": "Hamburg",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "descriptionPlain": "Automate workflows & document processes.",
+      "descriptionHtml": "<p>Automate workflows &amp; document processes.</p>",
+      "publishedAt": "2026-10-15T10:00:00+00:00",
+      "jobUrl": "https://jobs.ashbyhq.com/lumen-fictional/ab-1",
+      "applyUrl": "https://jobs.ashbyhq.com/lumen-fictional/ab-1/application"
+    },
+    {"id": "ab-2", "title": "Intern Reporting", "workplaceType": "OnSite"},
+    {"id": "unlisted", "title": "Private role", "isListed": false}
+  ]
+}

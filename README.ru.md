@@ -62,13 +62,33 @@ jp fill ID                открыть форму работодателя в 
 ## Настройка
 
 - **Факты о тебе:** `profile/facts.toml`. Письма собираются только из этих абзацев. Слова из `[forbidden]` (Power BI, VBA, Power Apps, «abgeschlossene Ausbildung» и т.п.) не попадут в письмо никогда.
-- **Где искать:** `config.toml` → `[[search.ba]]` (Arbeitsagentur: Гамбург, твой город, удалённо) и `[[search.personio]]` / `greenhouse` / `recruitee` (карьерные страницы компаний).
+- **Где искать:** `config.toml` → `[[search.ba]]` (Arbeitsagentur: Гамбург, твой город, удалённо) и `[[search.personio]]` / `greenhouse` / `recruitee` / `lever` / `smartrecruiters` / `ashby` / `workable` (карьерные страницы компаний).
 - **Вакансия, найденная вручную** (LinkedIn, stellenwerk, сайт компании): строка в `data/manual_leads.csv` плюс текст объявления в `data/manual/<файл>.txt` (пример формата — в `examples/`). Дальше она проходит ту же проверку.
 - **Резюме:** `documents/`, путь указан в `config.toml` → `cv_file`.
 
 ## Источники
 
 - Jobsuche der Bundesagentur für Arbeit: тот же API, который использует сайт arbeitsagentur.de (поиск `/pc/v6/jobs`, детали `/pc/v4/jobdetails`).
-- Фиды ATS: Personio (`/xml`), Greenhouse (`boards-api`), Recruitee (`/api/offers`).
+- Фиды ATS: Personio (`/xml`), Greenhouse (`boards-api`), Recruitee (`/api/offers`), Lever (`/v0/postings/{company}?mode=json`), SmartRecruiters (`/v1/companies/{company}/postings`, до 300 объявлений и 60 запросов деталей для студенческих названий), Ashby (`/posting-api/job-board/{board}`), Workable (`/api/v1/widget/accounts/{subdomain}?details=true`).
+
+Короткий пример для `config.toml` (идентификаторы вымышленные):
+
+```toml
+[[search.lever]]
+company = "lumen-fictional"          # идентификатор API
+company_name = "Lumen GmbH"          # необязательное название для отчёта
+
+[[search.smartrecruiters]]
+company = "lumen-fictional"
+company_name = "Lumen GmbH"
+
+[[search.ashby]]
+board = "lumen-fictional"
+company = "Lumen GmbH"
+
+[[search.workable]]
+subdomain = "lumen-fictional"
+company = "Lumen GmbH"
+```
 
 HTML-страницы досок объявлений инструмент не парсит. CAPTCHA и входы в аккаунты не обходит.

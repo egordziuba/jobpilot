@@ -1,0 +1,15 @@
+{
+  "limit": 100,
+  "offset": 0,
+  "totalFound": 2,
+  "content": [
+    {
+      "id": "sr-1",
+      "name": "Werkstudent Prozessautomatisierung",
+      "company": {"identifier": "lumen-fictional", "name": "Lumen Fictional GmbH"},
+      "releasedDate": "2026-10-15T10:00:00Z",
+      "location": {"city": "Hamburg", "country": "de", "remote": true}
+    },
+    {"id": "sr-2", "name": "Senior Accountant"}
+  ]
+}
