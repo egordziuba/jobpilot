@@ -5,6 +5,8 @@ import base64
 import json
 import shutil
 import tempfile
+from email.message import EmailMessage
+from email.policy import default
 from pathlib import Path
 
 from jobpilot.config import load_settings
@@ -131,9 +133,18 @@ class FakeSMTP:
 
 class FakeIMAP:
     def __init__(self, inbox: list[dict], text_first: bool = False):
-        self.inbox = inbox     # [{"from": "...", "subject": "...", "text": "..."}]
+        self.inbox = []  # Поддерживаем и прежние словари, и настоящие MIME-письма.
+        for msg in inbox:
+            if isinstance(msg, EmailMessage):
+                self.inbox.append({"from": str(msg.get("From", "")), "subject": str(msg.get("Subject", "")),
+                                   "text": "\n".join(p.get_content() for p in msg.walk()
+                                                     if p.get_content_type() in ("text/plain", "text/html")
+                                                     and not p.get_filename()), "raw": msg.as_bytes(policy=default)})
+            else:
+                self.inbox.append(msg)
         self.box = None
         self.text_first = text_first   # как Gmail: части ответа FETCH могут прийти в другом порядке
+        self.fetches = []
 
     def __call__(self, host):
         return self
@@ -167,7 +178,20 @@ class FakeIMAP:
         return "OK", [b""]
 
     def fetch(self, mid, what):
+        self.fetches.append((mid, what))
         m = self.inbox[int(mid) - 1]
+        if "BODY.PEEK[]" in what:
+            raw = m.get("raw")
+            if raw is None:
+                msg = EmailMessage()
+                msg["Subject"] = m["subject"]
+                msg["From"] = m["from"]
+                msg.set_content(m["text"])
+                raw = msg.as_bytes(policy=default)
+            parts = [(b"1 (BODY[]<0> {%d}" % len(raw), raw), b")"]
+            if self.text_first:
+                parts.reverse()
+            return "OK", parts
         head = f"Subject: {m['subject']}\r\nFrom: {m['from']}\r\n\r\n".encode()
         parts = [(b"1 (BODY[HEADER.FIELDS (SUBJECT FROM DATE)] {%d}" % len(head), head), (b" BODY[TEXT]<0> {%d}" % len(m["text"].encode()), m["text"].encode())]
         if self.text_first:

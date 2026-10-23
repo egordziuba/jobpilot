@@ -18,7 +18,7 @@ discover → verify → prioritise → prepare → send → confirm → reply
 | Prepare | Cover letter assembled from `profile/facts.toml` paragraphs; a deny-list blocks claims the candidate cannot prove; PDF letter rendered without external libraries |
 | Send | Gmail SMTP, max 3 per run / 5 per day, one company at most once per 30 days. Postings that say e-mail applications are not accepted are routed to the portal instead |
 | Confirm | "Attempted", "sent" and "result unknown" are separate states; an interrupted send is never retried blindly |
-| Reply | IMAP check: confirmations, rejections, invitations and bounces are matched to the right application |
+| Reply | IMAP decodes MIME replies and records the matched phrase: absence → invitation → rejection → document request → confirmation. Invitations and requests appear first in reports; ATS confirmations resolve uncertain form submissions without resending. Real replies stay `response` until you mark interview/rejected. |
 
 ### Application forms (optional)
 
