@@ -1,0 +1,14 @@
+{
+  "id": "sr-1",
+  "name": "Werkstudent Prozessautomatisierung",
+  "active": true,
+  "applyUrl": "https://jobs.smartrecruiters.com/lumen-fictional/sr-1/apply",
+  "jobAd": {
+    "sections": {
+      "companyDescription": {"title": "Über uns", "text": "<p>Ein fiktives Unternehmen.</p>"},
+      "jobDescription": {"title": "Aufgaben", "text": "<p>Workflows automatisieren &amp; Prozesse analysieren.</p>"},
+      "qualifications": {"title": "Profil", "text": "<ul><li>Laufendes Studium.</li></ul>"},
+      "additionalInformation": {"text": "15–20 Stunden pro Woche."}
+    }
+  }
+}

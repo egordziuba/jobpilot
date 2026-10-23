@@ -23,6 +23,8 @@ from .textutil import dedupe_key
 
 log = logging.getLogger("jobpilot")
 
+JSON_ATS = ("lever", "smartrecruiters", "ashby", "workable")
+
 
 @dataclass
 class RunResult:
@@ -72,9 +74,14 @@ def collect(settings, fetcher, result: RunResult) -> tuple[list, dict[str, set[s
             jobs += ba.search(fetcher, block, int(search.get("max_age_days", 21)))
         except Exception as exc:
             result.errors.append(f"Arbeitsagentur ({block.get('where') or 'remote'}): {exc}")
-    for kind, func in (("personio", ats.personio), ("greenhouse", ats.greenhouse), ("recruitee", ats.recruitee)):
+    for kind, func, identifier in (
+        ("personio", ats.personio, "slug"), ("greenhouse", ats.greenhouse, "token"),
+        ("recruitee", ats.recruitee, "slug"), ("lever", ats.lever, "company"),
+        ("smartrecruiters", ats.smartrecruiters, "company"), ("ashby", ats.ashby, "board"),
+        ("workable", ats.workable, "subdomain"),
+    ):
         for entry in search.get(kind, []):
-            key = f"{kind}:{entry.get('slug') or entry.get('token')}"
+            key = f"{kind}:{entry.get(identifier)}"
             try:
                 found = func(fetcher, entry)
                 jobs += found
@@ -92,9 +99,13 @@ def is_live(settings, fetcher, row, live_ids) -> bool:
             return ba.fetch_detail(fetcher, job) is not None
         except Exception:
             return True  # сеть недоступна — не закрываем вакансию, но и не считаем это доказательством
-    if row["source"] in ("personio", "greenhouse", "recruitee"):
+    if row["source"] in ("personio", "greenhouse", "recruitee", *JSON_ATS):
         _, slug, _ = row["id"].split(":", 2)
         ids = live_ids.get(f"{row['source']}:{slug}")
+        # New JSON sources require evidence from this run before sending.
+        if ids is None and row["source"] in JSON_ATS:
+            log.warning("Cannot verify posting at source: %s", row["id"])
+            return False
         return True if ids is None else row["id"] in ids
     return True
 
@@ -253,6 +264,10 @@ def send_queue(settings, store, fetcher, live_ids, result: RunResult, smtp_facto
         hist = store.in_history(row["company"], row["title"], row["email"])
         if hist:
             store.update(row["id"], "skipped", hist)
+            continue
+        if row["source"] in JSON_ATS and row["id"].rsplit(":", 1)[0] not in live_ids:
+            # A failed/disabled board is not proof of removal. Keep it queued for retry.
+            result.errors.append(f"Источник не проверен перед отправкой: {row['id']}")
             continue
         if not is_live(settings, fetcher, row, live_ids):
             store.update(row["id"], "closed", "объявление снято перед отправкой")

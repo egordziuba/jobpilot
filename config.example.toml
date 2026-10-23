@@ -94,6 +94,22 @@ queries = ["Werkstudent remote KI", "Werkstudent remote Automatisierung", "Werks
 # slug = "firmenname"                # https://firmenname.recruitee.com
 # company = "Firma GmbH"
 
+# [[search.lever]]
+# company = "firmenname"             # https://jobs.lever.co/firmenname (API identifier)
+# company_name = "Firma GmbH"        # optional display name; company remains the identifier
+#
+# [[search.smartrecruiters]]
+# company = "firmenname"             # https://careers.smartrecruiters.com/firmenname
+# company_name = "Firma GmbH"        # optional display name
+#
+# [[search.ashby]]
+# board = "firmenname"               # https://jobs.ashbyhq.com/firmenname
+# company = "Firma GmbH"             # optional display name
+#
+# [[search.workable]]
+# subdomain = "firmenname"           # https://apply.workable.com/firmenname
+# company = "Firma GmbH"             # optional display name
+
 [llm]
 # Необязательно. Если включено и в .env есть ANTHROPIC_API_KEY, модель только пересказывает
 # задачу работодателя одной фразой. Факты о тебе всегда берутся из profile/facts.toml.

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "lv-1",
+    "text": "Werkstudent KI & Prozessautomatisierung (m/w/d)",
+    "categories": {"location": "Hamburg", "commitment": "Part-time"},
+    "workplaceType": "remote",
+    "hostedUrl": "https://jobs.lever.co/lumen-fictional/lv-1",
+    "applyUrl": "https://jobs.lever.co/lumen-fictional/lv-1/apply",
+    "descriptionPlain": "Du automatisierst Workflows mit KI und analysierst und dokumentierst Prozesse.",
+    "lists": [{"text": "Profil", "content": "<ul><li>Laufendes Studium. 15–20 Stunden pro Woche.</li></ul>"}],
+    "additionalPlain": "Bewirb dich per E-Mail mit Lebenslauf an bewerbung@lumen-fictional.de"
+  },
+  {"id": "lv-2", "text": "Working Student Reporting", "workplaceType": "on-site"}
+]

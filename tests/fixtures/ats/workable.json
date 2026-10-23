@@ -1,0 +1,19 @@
+{
+  "name": "Lumen Fictional GmbH",
+  "jobs": [
+    {
+      "title": "Werkstudent Digitalisierung",
+      "shortcode": "WK1",
+      "city": "Hamburg",
+      "state": "Hamburg",
+      "country": "Germany",
+      "telecommuting": true,
+      "workplace_type": "remote",
+      "url": "https://apply.workable.com/lumen-fictional/j/WK1/",
+      "application_url": "https://apply.workable.com/lumen-fictional/j/WK1/apply/",
+      "published_on": "2026-10-15",
+      "description": "<p>Prozesse analysieren &amp; automatisieren.</p>"
+    },
+    {"title": "Trainee Automation", "shortcode": "WK2", "telecommuting": false}
+  ]
+}

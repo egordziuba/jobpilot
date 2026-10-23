@@ -127,7 +127,7 @@ AUTO_REPLY = re.compile(r"eingangsbest|eingang (ihrer|deiner) bewerbung|(ihre|de
                         r"vielen dank f(ü|ue)r (ihre|deine) bewerbung|wir haben (ihre|deine) bewerbung (erhalten|bekommen)|bewerbung erhalten", re.I)
 JOB_BOARDS = ("arbeitsagentur", "stepstone", "linkedin", "indeed", "xing", "glassdoor", "monster", "stellenwerk", "jobware", "kununu")
 ATS_DOMAINS = ("personio", "softgarden", "concludis", "greenhouse", "lever.co", "recruitee", "dvinci", "join.com", "smartrecruiters",
-               "workday", "successfactors", "umantis", "rexx", "onlyfy", "jobs.", "karriere.")
+               "ashbyhq", "workable", "workday", "successfactors", "umantis", "rexx", "onlyfy", "jobs.", "karriere.")
 LEGAL = {"gmbh", "ag", "se", "mbh", "kg", "kgaa", "co", "co.", "e.v.", "ev", "ohg", "ug", "gbr", "und", "der", "die", "das",
          "abteilung", "hamburg", "deutschland", "germany", "group", "gruppe", "holding", "the"}
 

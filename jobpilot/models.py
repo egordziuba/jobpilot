@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 @dataclass
 class Job:
     id: str                      # "ba:10001-...", "personio:ftt:123", "manual:ezt"
-    source: str                  # ba | personio | greenhouse | recruitee | manual
+    source: str                  # ba | personio | greenhouse | recruitee | lever | smartrecruiters | ashby | workable | manual
     company: str
     title: str
     source_url: str = ""
