@@ -128,7 +128,8 @@ def send_self(settings, subject: str, body: str, smtp_factory=None) -> None:
 # ---------------------------------------------------------------- IMAP
 AUTO_REPLY = re.compile(r"eingangsbest\w*|eingang (ihrer|deiner) bewerbung|(ihre|deine) bewerbung ist (bei uns )?eingegangen|automatische antwort|auto-?reply|"
                         r"automatic reply|out of office|abwesen|we have received your application|thank you for your application|"
-                        r"vielen dank f(ü|ue)r (ihre|deine) bewerbung|wir haben (ihre|deine) bewerbung (erhalten|bekommen)|bewerbung erhalten", re.I)
+                        r"vielen dank f(ü|ue)r (ihre|deine) bewerbung|wir haben (ihre|deine) bewerbung (erhalten|bekommen)|bewerbung erhalten|"
+                        r"unterlagen sind (sicher |gut )?(bei uns )?eingegangen", re.I)
 JOB_BOARDS = ("arbeitsagentur", "stepstone", "linkedin", "indeed", "xing", "glassdoor", "monster", "stellenwerk", "jobware", "kununu")
 ATS_DOMAINS = ("personio", "softgarden", "concludis", "greenhouse", "lever.co", "recruitee", "dvinci", "join.com", "smartrecruiters",
                "workday", "successfactors", "umantis", "rexx", "onlyfy", "jobs.", "karriere.")
@@ -197,6 +198,9 @@ REJECT = re.compile(
     r"\b(?:move|moving) forward with other candidates\b|"
     r"\bdecided to proceed with other candidates\b|\bregret to inform\b", re.I)
 ABSAGE = re.compile(r"\bAbsage\b", re.I)
+# «…entschieden, den Prozess mit anderen Kandidaten fortzuführen» — отказ без слова «leider».
+OTHER_CANDIDATES = re.compile(r"\bmit\s+anderen\s+(?:Kandidat|Bewerber)\w*", re.I)
+CHOSE_OTHERS = re.compile(r"\b(?:entschieden|entscheiden|fortzuf(?:ü|ue)hren|fortzusetzen|weiterzuf(?:ü|ue)hren)\b", re.I)
 ABSAGE_CONTEXT = re.compile(
     r"\b(?:Bewerbung\w*|Bewerber\w*|Kandidat\w*|Stelle|Position|Pr(?:ü|ue)fung|Auswahl)\b|"
     r"\bAbsage\s+(?:erteilen|mitteilen|senden)\b", re.I)
@@ -238,6 +242,8 @@ def classify_reply(subject: str, text: str) -> tuple[str, str]:
     for sentence in sentences:
         if match := REJECT.search(sentence):
             return "reject", match.group(0)
+        if OTHER_CANDIDATES.search(sentence) and CHOSE_OTHERS.search(sentence):
+            return "reject", sentence.strip()
         if ABSAGE.search(sentence) and ABSAGE_CONTEXT.search(sentence):
             return "reject", sentence.strip()
         if re.search(r"\bleider\b", sentence, re.I) and re.search(r"\b(?:nicht|keine\w*|andere\w*|absagen)\b", sentence, re.I):
