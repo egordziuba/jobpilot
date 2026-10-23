@@ -179,10 +179,27 @@ SCHEDULING_INVITE = re.compile(
     r"\b(?:please\s+)?(?:book|schedule|choose|pick|select)\s+[^.!?]*?\b(?:time|slot|meeting|call)\b|"
     r"\b(?:wir m(?:ö|oe)chten Sie|we (?:would like to|want to))\s+[^.!?]*?\b(?:kennenlernen|meet)\b|"
     r"\b(?:bitte\s+)?(?:w(?:ä|ae)hlen|buchen|vereinbaren) Sie\s+[^.!?]*?\b(?:Termin|Zeitfenster)\b", re.I)
+INVITE_CONDITIONAL = re.compile(
+    r"\bggf\b\.?|\b(?:gegebenenfalls|falls|sofern|wenn|sollten Sie|solltest du|bei Interesse|"
+    r"if|should you|once|in case)\b", re.I)
+INVITE_NEGATED = re.compile(r"\b(?:nicht|kein\w*|not|unable|cannot|can['’]t|won['’]t)\b", re.I)
+# Отдельное предложение остаётся единицей условия. Отрицание относится к своей
+# части: «Freitag ist nicht möglich, wir laden Sie aber ... ein» — приглашение.
+# Не разрываем вставки вроде «nicht, wie besprochen, zum Interview einladen».
+INVITE_CLAUSES = re.compile(
+    r";\s*|,\s*(?=(?:wir|ich|we|I)\b)|\b(?:aber|jedoch|but|however|instead|stattdessen)\b", re.I)
 REJECT = re.compile(
     r"\bnicht\s+(?:weiter\s+)?ber(?:ü|ue)cksichtigen\b|"
     r"\bf(?:ü|ue)r\s+(?:eine andere Person|einen anderen Kandidaten|eine andere Kandidatin)\s+entschieden\b|"
-    r"\bnot to move forward\b|\bdecided to proceed with other candidates\b", re.I)
+    r"\bgegen\s+(?:Sie|dich|Ihre Bewerbung|deine Bewerbung)\s+entschieden\b|"
+    r"\b(?:anderweitig|bereits)\s+besetzt\b|\bkeine\s+Stelle\s+anbieten\b|"
+    r"\bposition has been filled\b|\bnot (?:to move|be moving) forward\b|"
+    r"\b(?:move|moving) forward with other candidates\b|"
+    r"\bdecided to proceed with other candidates\b|\bregret to inform\b", re.I)
+ABSAGE = re.compile(r"\bAbsage\b", re.I)
+ABSAGE_CONTEXT = re.compile(
+    r"\b(?:Bewerbung\w*|Bewerber\w*|Kandidat\w*|Stelle|Position|Pr(?:ü|ue)fung|Auswahl)\b|"
+    r"\bAbsage\s+(?:erteilen|mitteilen|senden)\b", re.I)
 REQUEST_INFO = re.compile(
     r"\bbitte senden Sie uns\b[^.!?]*?\b(?:Unterlagen|Zeugnisse|Immatrikulationsbescheinigung)\b|"
     r"\bR(?:ü|ue)ckfrage\w*|\bcould you send\b", re.I)
@@ -193,23 +210,45 @@ REPLY_RU = {"invite": "приглашение", "reject": "отказ", "request
 def classify_reply(subject: str, text: str) -> tuple[str, str]:
     """Приоритет правил: отсутствие → приглашение → отказ → уточнение → получение.
 
-    Возвращаем исходную фразу как объяснение. Общие слова «Termin», «Gespräch»,
-    «leider» и техническое «Auto-Reply» сами по себе не означают приглашение/отказ/отсутствие.
+    Приглашение проверяем по предложениям: условия исключают его, отрицание
+    проверяем в соответствующей части предложения. Условное обещание интервью
+    остаётся подтверждением рассмотрения, если нет отказа или запроса документов.
+    Возвращаем исходную решающую фразу/предложение как объяснение.
     """
     blob = re.sub(r"\s+", " ", subject) + ". " + re.sub(r"\s+", " ", text)
-    for kind, rule in (("ooo", OUT_OF_OFFICE), ("invite", INVITE)):
-        if match := rule.search(blob):
-            return kind, match.group(0)
-    if SCHEDULING_LINK.search(blob) and (match := SCHEDULING_INVITE.search(blob)):
-        return "invite", match.group(0)
-    for sentence in re.split(r"(?<=[.!?])\s+", blob):
+    if match := OUT_OF_OFFICE.search(blob):
+        return "ooo", match.group(0)
+    # Точка в «ggf.» не завершает предложение и не снимает условие.
+    sentences = re.split(r"(?<!\bggf\.)(?<=[.!?])\s+", blob, flags=re.I)
+    conditional_invite = ""
+    # HTML href может быть вынесен после текста: фраза остаётся в своём предложении.
+    has_link = SCHEDULING_LINK.search(blob)
+    for sentence in sentences:
+        if not (INVITE.search(sentence) or (has_link and SCHEDULING_INVITE.search(sentence))):
+            continue
+        if INVITE_CONDITIONAL.search(sentence):
+            conditional_invite = conditional_invite or sentence.strip()
+            continue
+        for clause in INVITE_CLAUSES.split(sentence):
+            if INVITE_NEGATED.search(clause):
+                continue
+            match = INVITE.search(clause) or (has_link and SCHEDULING_INVITE.search(clause))
+            if match:
+                return "invite", match.group(0)
+    for sentence in sentences:
         if match := REJECT.search(sentence):
             return "reject", match.group(0)
+        if ABSAGE.search(sentence) and ABSAGE_CONTEXT.search(sentence):
+            return "reject", sentence.strip()
         if re.search(r"\bleider\b", sentence, re.I) and re.search(r"\b(?:nicht|keine\w*|andere\w*|absagen)\b", sentence, re.I):
+            return "reject", sentence.strip()
+        if re.search(r"\bunfortunately\b", sentence, re.I) and re.search(r"\b(?:not|other|unable)\b", sentence, re.I):
             return "reject", sentence.strip()
     for kind, rule in (("request_info", REQUEST_INFO), ("confirm", AUTO_REPLY)):
         if match := rule.search(blob):
             return kind, match.group(0)
+    if conditional_invite:
+        return "confirm", conditional_invite
     return "other", ""
 
 
