@@ -78,6 +78,45 @@ CASES = [
 ]
 
 
+# Manager regression cases: sentence context, realistic German/English HR wording.
+CONTEXT_CASES = [
+    ("negated_formal_invitation", "Leider können wir Sie nicht zu einem Vorstellungsgespräch einladen, da wir uns für eine andere Kandidatin entschieden haben.", "reject"),
+    ("provisional_review", "Wir prüfen Ihre Unterlagen und melden uns, um ggf. einen Termin für ein Vorstellungsgespräch zu vereinbaren.", "confirm"),
+    ("shortlisted_english", "We have received your application. If you are shortlisted, we will invite you to an interview.", "confirm"),
+    ("english_move_forward_other_candidates", "Unfortunately, we have decided to move forward with other candidates whose experience more closely matches.", "reject"),
+    ("formal_absage", "Nach sorgfältiger Prüfung müssen wir Ihnen eine Absage erteilen.", "reject"),
+    ("shortlisted_formal", "Sollten Sie in die engere Auswahl kommen, laden wir Sie zu einem Interview ein.", "confirm"),
+    ("friday_unavailable_thursday_invite", "Leider ist Freitag nicht möglich, wir laden Sie aber gern am Donnerstag zum Vorstellungsgespräch ein.", "invite"),
+    ("personio_du_rejection", "Vielen Dank für deine Bewerbung. Leider können wir dich nicht zu einem Interview einladen.", "reject"),
+    ("personio_du_invitation", "Vielen Dank für deine Bewerbung. Wir laden dich zu einem Kennenlerngespräch mit unserem Team ein.", "invite"),
+    ("gegen_sie", "Nach sorgfältiger Prüfung haben wir uns gegen Sie entschieden.", "reject"),
+    ("gegen_bewerbung", "Wir haben uns gegen Ihre Bewerbung entschieden.", "reject"),
+    ("anderweitig_besetzt_conditional_interview", "Die Stelle ist anderweitig besetzt. Falls sich etwas ändert, laden wir Sie zu einem Interview ein.", "reject"),
+    ("bereits_besetzt", "Vielen Dank für deine Bewerbung. Die Position ist bereits besetzt.", "reject"),
+    ("keine_stelle_anbieten", "Wir können Ihnen zurzeit keine Stelle anbieten.", "reject"),
+    ("english_position_filled", "The position has been filled. If another role opens, we will invite you to an interview.", "reject"),
+    ("english_not_be_moving_forward", "After reviewing your application, we will not be moving forward.", "reject"),
+    ("english_regret_to_inform", "We regret to inform you that your application was unsuccessful.", "reject"),
+    ("english_unfortunately_unable", "Unfortunately, we are unable to invite you to an interview.", "reject"),
+    ("english_unfortunately_not", "Unfortunately, your application was not successful.", "reject"),
+    ("english_unfortunately_other", "Unfortunately, other applicants better match our requirements.", "reject"),
+    ("absage_unrelated_event", "Vielen Dank für Ihre Bewerbung. Die Absage unseres Sommerfests betrifft nur die Veranstaltung.", "confirm"),
+    ("personio_gegebenenfalls", "Wir prüfen deine Unterlagen und laden dich gegebenenfalls zu einem Interview ein.", "confirm"),
+    ("conditional_sofern", "Sofern Ihr Profil passt, laden wir Sie zu einem Vorstellungsgespräch ein.", "confirm"),
+    ("conditional_wenn", "Wenn deine Unterlagen vollständig sind, laden wir dich zu einem Interview ein.", "confirm"),
+    ("conditional_bei_interesse", "Bei Interesse laden wir Sie zu einem Vorstellungsgespräch ein.", "confirm"),
+    ("conditional_should_you", "Should you be shortlisted, we will invite you to an interview.", "confirm"),
+    ("conditional_once", "Once we have reviewed your application, we may invite you to an interview.", "confirm"),
+    ("conditional_in_case", "In case you are shortlisted, we will invite you to an interview.", "confirm"),
+    ("negation_keine", "Vielen Dank für Ihre Bewerbung. Aktuell sind keine Vorstellungsgespräche geplant.", "confirm"),
+    ("negation_cannot", "We have received your application. We cannot arrange an interview at this stage.", "confirm"),
+    ("negation_wont", "We have received your application. We won't schedule an interview until our review is complete.", "confirm"),
+    ("negation_relative_clause", "Leider können wir Sie nicht, wie ursprünglich geplant, zum Interview einladen.", "reject"),
+    ("conditional_scheduling_link", "If you are shortlisted, please choose a time at https://calendly.example.test/nebelwerk", "confirm"),
+    ("english_contrast_invitation", "Unfortunately Friday is not possible, but we invite you to an interview on Thursday.", "invite"),
+]
+
+
 class ClassifierTests(unittest.TestCase):
     pass
 
@@ -98,7 +137,7 @@ def classification_case(body, expected):
     return test
 
 
-for name, body, expected in CASES:
+for name, body, expected in CASES + CONTEXT_CASES:
     setattr(ClassifierTests, f"test_{name}", classification_case(body, expected))
 
 
