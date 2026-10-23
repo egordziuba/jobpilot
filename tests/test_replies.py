@@ -108,6 +108,10 @@ CONTEXT_CASES = [
     ("conditional_should_you", "Should you be shortlisted, we will invite you to an interview.", "confirm"),
     ("conditional_once", "Once we have reviewed your application, we may invite you to an interview.", "confirm"),
     ("conditional_in_case", "In case you are shortlisted, we will invite you to an interview.", "confirm"),
+    # Real-world patterns (anonymised): rejection without «leider», confirmation via «Unterlagen eingegangen».
+    ("other_candidates_without_leider", "Wir haben uns intensiv mit Ihrem Profil beschäftigt. Nach sorgfältiger Abwägung haben wir uns jedoch dazu entschieden, den weiteren Prozess mit anderen Kandidaten fortzuführen. Vielleicht ergibt sich später die Gelegenheit, miteinander ins Gespräch zu kommen.", "reject"),
+    ("other_applicants_continue", "Wir haben uns entschieden, den Bewerbungsprozess mit anderen Bewerberinnen und Bewerbern fortzusetzen.", "reject"),
+    ("documents_arrived_confirmation", "Wir bedanken uns für die Zusendung Ihrer Bewerbungsunterlagen. Ihre Unterlagen sind sicher bei uns eingegangen. Wir geben Ihnen so schnell wie möglich ein Feedback.", "confirm"),
     ("negation_keine", "Vielen Dank für Ihre Bewerbung. Aktuell sind keine Vorstellungsgespräche geplant.", "confirm"),
     ("negation_cannot", "We have received your application. We cannot arrange an interview at this stage.", "confirm"),
     ("negation_wont", "We have received your application. We won't schedule an interview until our review is complete.", "confirm"),
