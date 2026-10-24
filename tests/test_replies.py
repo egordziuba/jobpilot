@@ -111,6 +111,12 @@ CONTEXT_CASES = [
     # Real-world patterns (anonymised): rejection without «leider», confirmation via «Unterlagen eingegangen».
     ("other_candidates_without_leider", "Wir haben uns intensiv mit Ihrem Profil beschäftigt. Nach sorgfältiger Abwägung haben wir uns jedoch dazu entschieden, den weiteren Prozess mit anderen Kandidaten fortzuführen. Vielleicht ergibt sich später die Gelegenheit, miteinander ins Gespräch zu kommen.", "reject"),
     ("other_applicants_continue", "Wir haben uns entschieden, den Bewerbungsprozess mit anderen Bewerberinnen und Bewerbern fortzusetzen.", "reject"),
+    # 24.10: portal account mails and «Bei Rückfragen…» seen in the real inbox (anonymised).
+    ("portal_password_mail", "Passwort erstellen. Willkommen bei unserer Karriereseite, damit Sie auch in Zukunft Zugriff auf die Bewerbung haben.", "system"),
+    ("portal_set_password", "Bewerbung abschließen: schließen Sie den Bewerbungsprozess ab und schützen Ihre Daten, indem Sie ein Passwort setzen.", "system"),
+    ("bei_rueckfragen_confirmation", "Jetzt sind wir dran - Eingangsbestätigung. Vielen Dank für deine Bewerbung. Bei Rückfragen stehen wir dir gerne zur Verfügung.", "confirm"),
+    ("onlyfy_process_completed", "Ihre Bewerbung ist abgeschlossen. Sie haben den Bewerbungsprozess abgeschlossen!", "confirm"),
+    ("onlyfy_data_recorded", "Wir möchten Sie darüber informieren, dass Ihre Bewerbungsdaten nun im Bewerbungsmanager erfasst sind.", "confirm"),
     ("documents_arrived_confirmation", "Wir bedanken uns für die Zusendung Ihrer Bewerbungsunterlagen. Ihre Unterlagen sind sicher bei uns eingegangen. Wir geben Ihnen so schnell wie möglich ein Feedback.", "confirm"),
     ("negation_keine", "Vielen Dank für Ihre Bewerbung. Aktuell sind keine Vorstellungsgespräche geplant.", "confirm"),
     ("negation_cannot", "We have received your application. We cannot arrange an interview at this stage.", "confirm"),
@@ -280,6 +286,45 @@ class InboxReplyTests(unittest.TestCase):
         self.assertEqual(len(self.store.events("one")), before + 2)
         self.assertEqual(self.check(messages), [])
         self.assertEqual(len(self.store.events("one")), before + 2)
+
+    def test_own_jobpilot_summary_is_never_a_reply(self):
+        summary = message("Nebelwerk GmbH — Werkstudent Data. Bitte senden Sie uns die Unterlagen. Wir haben eine Rückfrage zu Ihrer Bewerbung.",
+                          subject="JobPilot: отправлено 1, в очереди 0", sender="Toni Muster <toni@applicant.example.test>")
+        self.check([summary])
+        row = self.store.get("one")
+        self.assertEqual(row["status"], "submitted")
+        self.assertIsNone(row["response_note"])
+
+    def test_mail_from_own_address_is_ignored(self):
+        self.check([message("Nebelwerk: Wir haben eine Rückfrage zu Ihrer Bewerbung.", subject="Fwd: Bewerbung",
+                            sender="toni@applicant.example.test")])
+        self.assertEqual(self.store.get("one")["status"], "submitted")
+
+    def test_portal_password_mail_is_not_a_reply(self):
+        self.check([message("Nebelwerk Karriere: Willkommen. Bitte Passwort erstellen, um den Zugriff auf Ihre Bewerbung zu behalten.",
+                            subject="Passwort erstellen")])
+        row = self.store.get("one")
+        self.assertEqual(row["status"], "submitted")
+        self.assertIsNone(row["response_note"])
+
+    def test_one_time_repair_rereads_misread_request_but_keeps_real_replies(self):
+        self.store.update("one", "response", "old", response_note=mailer.REPLY_RU["request_info"] + ": «Rückfrage»",
+                          response_at="2026-10-24T09:00:00")
+        self.add_job("two", company="Wolkenfaden GmbH")
+        self.store.update("two", "response", "old", response_note="отказ: «nicht weiter berücksichtigen»", response_at="2026-10-22")
+        self.store.set_meta("reply:stale", "request_info")
+        self.store.set_meta("reply:keep", "reject")
+        self.check([message("Nebelwerk: Vielen Dank für Ihre Bewerbung. Bei Rückfragen stehen wir Ihnen gerne zur Verfügung.")])
+        one, two = self.store.get("one"), self.store.get("two")
+        self.assertEqual(one["status"], "submitted")
+        self.assertTrue(one["response_note"].startswith("Получение подтверждено"), one["response_note"])
+        self.assertEqual(two["status"], "response")
+        self.assertEqual(self.store.get_meta("reply:stale"), "")
+        self.assertEqual(self.store.get_meta("reply:keep"), "reject")
+        before = len(self.store.events("one"))
+        self.check([message("Nebelwerk: Wir laden Sie zum Vorstellungsgespräch ein.", number=2)])
+        self.assertEqual(self.store.get("one")["status"], "response")
+        self.assertGreater(len(self.store.events("one")), before)
 
     def test_repeated_confirmation_deduplicated_across_checks(self):
         msg = message("Nebelwerk: Vielen Dank für Ihre Bewerbung.")

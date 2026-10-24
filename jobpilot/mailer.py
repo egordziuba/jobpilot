@@ -16,7 +16,7 @@ from datetime import datetime
 from email.header import decode_header, make_header
 from email.message import EmailMessage
 from email.policy import default
-from email.utils import formataddr, formatdate, make_msgid, parsedate_to_datetime
+from email.utils import formataddr, formatdate, make_msgid, parseaddr, parsedate_to_datetime
 from pathlib import Path
 
 from .textutil import strip_html
@@ -129,7 +129,8 @@ def send_self(settings, subject: str, body: str, smtp_factory=None) -> None:
 AUTO_REPLY = re.compile(r"eingangsbest\w*|eingang (ihrer|deiner) bewerbung|(ihre|deine) bewerbung ist (bei uns )?eingegangen|automatische antwort|auto-?reply|"
                         r"automatic reply|out of office|abwesen|we have received your application|thank you for your application|"
                         r"vielen dank f(ü|ue)r (ihre|deine) bewerbung|wir haben (ihre|deine) bewerbung (erhalten|bekommen)|bewerbung erhalten|"
-                        r"unterlagen sind (sicher |gut )?(bei uns )?eingegangen", re.I)
+                        r"unterlagen sind (sicher |gut )?(bei uns )?eingegangen|bewerbung(sprozess)? (ist )?(erfolgreich )?abgeschlossen|"
+                        r"den bewerbungsprozess abgeschlossen|bewerbungsdaten [^.]{0,60}erfasst", re.I)
 JOB_BOARDS = ("arbeitsagentur", "stepstone", "linkedin", "indeed", "xing", "glassdoor", "monster", "stellenwerk", "jobware", "kununu")
 ATS_DOMAINS = ("personio", "softgarden", "concludis", "greenhouse", "lever.co", "recruitee", "dvinci", "join.com", "smartrecruiters",
                "ashbyhq", "workable", "workday", "successfactors", "umantis", "rexx", "onlyfy", "jobs.", "karriere.")
@@ -206,9 +207,16 @@ ABSAGE_CONTEXT = re.compile(
     r"\bAbsage\s+(?:erteilen|mitteilen|senden)\b", re.I)
 REQUEST_INFO = re.compile(
     r"\bbitte senden Sie uns\b[^.!?]*?\b(?:Unterlagen|Zeugnisse|Immatrikulationsbescheinigung)\b|"
-    r"\bR(?:ü|ue)ckfrage\w*|\bcould you send\b", re.I)
+    r"\b(?:wir haben|ich habe|es gibt)\s+(?:noch\s+)?(?:eine|einige|ein paar)\s+R(?:ü|ue)ckfrage\w*|"
+    r"\bR(?:ü|ue)ckfrage\w*\s+zu\s+(?:Ihrer|deiner|Ihren|deinen)\s+(?:Bewerbung|Unterlagen)|\bcould you send\b", re.I)
+# Служебные письма порталов (пароль, аккаунт) — не ответ работодателя.
+SYSTEM_MAIL = re.compile(
+    r"\bpasswort\s+(?:erstellen|setzen|festlegen|vergeben|anlegen)|\b(?:create|set)\s+(?:a\s+|your\s+)?password\b|"
+    r"\bkonto\s+(?:aktivieren|bestätigen|bestaetigen)|\baccount\s+(?:activation|verification)\b|"
+    r"\be-?mail(?:-adresse)?\s+(?:bestätigen|bestaetigen)|\bverify\s+your\s+e-?mail\b|\bbewerbung(?:sprozess)?\s+abschlie(?:ß|ss)en\b", re.I)
 REPLY_RU = {"invite": "приглашение", "reject": "отказ", "request_info": "запрос документов / уточнение",
-            "confirm": "Получение подтверждено", "ooo": "автоответ об отсутствии", "other": "прочитай письмо"}
+            "confirm": "Получение подтверждено", "ooo": "автоответ об отсутствии", "other": "прочитай письмо",
+            "system": "служебное письмо портала"}
 
 
 def classify_reply(subject: str, text: str) -> tuple[str, str]:
@@ -255,6 +263,8 @@ def classify_reply(subject: str, text: str) -> tuple[str, str]:
             return kind, match.group(0)
     if conditional_invite:
         return "confirm", conditional_invite
+    if match := SYSTEM_MAIL.search(blob):
+        return "system", match.group(0)
     return "other", ""
 
 
@@ -313,7 +323,7 @@ def _fetch(imap, mid, metadata: dict | None = None) -> tuple[str, str, str]:
 
 def _record(store, r, kind: str, evidence: str, subject: str, notes: list[str], metadata: dict) -> bool:
     """Записывает ответ. True — это настоящий ответ (дальше по этой вакансии не смотрим)."""
-    if kind == "ooo":
+    if kind in ("ooo", "system"):
         return False
     key = "reply:" + hashlib.sha256((r["id"] + "\0" + metadata["key"]).encode()).hexdigest()
     if store.get_meta(key):
@@ -360,8 +370,37 @@ def _repair_blank_responses(store) -> None:
             store.update(r["id"], prev, "перечитаю ответ: тема письма не прочиталась", response_at=None, response_note=None)
 
 
+def _own_message(settings, subject: str, sender: str) -> bool:
+    """Собственные письма (сводка JobPilot, копии отправленного) никогда не считаются ответом работодателя."""
+    if (subject or "").strip().lower().startswith("jobpilot"):
+        return True
+    addr = parseaddr(sender or "")[1].lower()
+    own = {settings.secret("SMTP_USER").lower(), str((getattr(settings, "applicant", None) or {}).get("email", "")).lower()}
+    return bool(addr) and addr in own - {""}
+
+
+def _repair_misread_replies(store) -> None:
+    """Однократно: до 24.10 собственная сводка JobPilot и фраза «Bei Rückfragen…» могли записаться
+    как «запрос документов»/«прочитай письмо». Возвращаю такие ответы на прежний статус и снимаю отметки
+    «уже прочитано», чтобы письма перечитались с исправленными правилами. Подтверждения и отказы не трогаю."""
+    flag = "repair_misread_replies_v1"
+    if store.get_meta(flag):
+        return
+    for r in store.by_status("response"):
+        note = r["response_note"] or ""
+        if not (note.startswith(REPLY_RU["request_info"]) or note.startswith(REPLY_RU["other"])):
+            continue
+        prev = store.previous_status(r["id"], "response")
+        if prev:
+            store.update(r["id"], prev, "перечитаю ответ: прежняя классификация могла учесть собственную сводку JobPilot",
+                         response_at=None, response_note=None)
+    store.db.execute("DELETE FROM meta WHERE key LIKE 'reply:%' AND value IN ('request_info', 'other')")
+    store.set_meta(flag, datetime.now().isoformat(timespec="seconds"))
+
+
 def check_inbox(settings, store, imap_factory=None) -> list[str]:
     _repair_blank_responses(store)
+    _repair_misread_replies(store)
     rows = store.by_status("sent", "send_unknown", "submitted", "applied_manually")
     if not rows:
         return []
@@ -399,6 +438,8 @@ def check_inbox(settings, store, imap_factory=None) -> list[str]:
             for mid in ids:
                 metadata = {}
                 subject, sender, text = _fetch(imap, mid, metadata)
+                if _own_message(settings, subject, sender):
+                    continue
                 if _record(store, store.get(r["id"]), *classify_reply(subject, text), subject, notes, metadata):
                     break
             typ, data = imap.search(None, "SINCE", since, "FROM", "mailer-daemon", "BODY", addr)
@@ -423,7 +464,7 @@ def check_inbox(settings, store, imap_factory=None) -> list[str]:
                     seen.add(mid)
                     metadata = {}
                     subject, sender, text = _fetch(imap, mid, metadata)
-                    if any(b in sender.lower() for b in JOB_BOARDS):
+                    if _own_message(settings, subject, sender) or any(b in sender.lower() for b in JOB_BOARDS):
                         continue
                     if crit == "TEXT" and not re.search(r"bewerb|application|applying", subject + " " + text[:1500], re.I):
                         continue
